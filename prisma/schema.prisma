@@ -1,0 +1,126 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ====================
+// Authentication Models (NextAuth.js)
+// ====================
+
+model Account {
+  id                        String  @id @default(cuid())
+  userId                    String
+  type                      String
+  provider                  String
+  providerAccountId         String
+  refresh_token             String?
+  access_token              String?
+  expires_at                Int?
+  token_type                String?
+  scope                     String?
+  id_token                  String?
+  session_state             String?
+  refresh_token_expires_in  Int?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ====================
+// Core Application Models
+// ====================
+
+model User {
+  id            String         @id @default(cuid())
+  email         String         @unique
+  emailVerified DateTime?
+  name          String?
+  image         String?
+  accounts      Account[]
+  sessions      Session[]
+  subscriptions Subscription[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+}
+
+model Subscription {
+  id              String    @id @default(cuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Service Info
+  serviceName     String
+  serviceSlug     String?
+  logoUrl         String?
+  
+  // Billing Info
+  amount          Float
+  currency        String    @default("USD")
+  billingCycle    String
+  nextBillingDate DateTime?
+  lastBillingDate DateTime?
+  
+  // Detection Info
+  cancellationUrl String?
+  detectedFrom    String?
+  confidence      Float     @default(1.0)
+  
+  // Status
+  status          String    @default("active")
+  confirmed       Boolean   @default(false)
+  
+  // Timestamps
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  cancelledAt     DateTime?
+}
+
+model CancellationGuide {
+  id           String    @id @default(cuid())
+  serviceName  String    @unique
+  serviceSlug  String    @unique
+  logoUrl      String?
+  steps        String
+  directLink   String?
+  difficulty   String
+  avgTime      String
+  lastVerified DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+model EmailScan {
+  id          String    @id @default(cuid())
+  userId      String
+  provider    String
+  status      String
+  emailsFound Int       @default(0)
+  subsFound   Int       @default(0)
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+  error       String?
+}
