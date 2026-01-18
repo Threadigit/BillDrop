@@ -115,16 +115,16 @@ export default function LandingPage() {
               </motion.p>
               
               <motion.div {...fadeInUp} className="flex flex-col sm:flex-row gap-3 justify-center lg:justify-start">
-                <Link href="/login" className="btn-primary flex items-center justify-center gap-2 text-sm py-3 px-5">
+                <Link href="/login" className="btn-primary flex items-center justify-center gap-2 text-sm py-2.5 px-4">
                   <Mail className="w-4 h-4" />
                   Connect with Gmail
                 </Link>
                 <button 
-                  className="btn-secondary flex items-center justify-center gap-2 text-sm py-3 px-5 opacity-70 cursor-not-allowed"
+                  className="btn-secondary flex flex-col items-center justify-center gap-1 text-sm py-2.5 px-4 opacity-60 cursor-not-allowed"
                   disabled
                 >
-                  Connect with Outlook
-                  <span className="flex items-center gap-1 text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">
+                  <span>Connect with Outlook</span>
+                  <span className="flex items-center gap-1 text-xs text-amber-600">
                     <Clock className="w-3 h-3" />
                     Coming Soon
                   </span>

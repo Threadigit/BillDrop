@@ -77,16 +77,25 @@ function LoginContent() {
 
           {/* Microsoft/Outlook Login */}
           <button
-            onClick={() => signIn('azure-ad', { callbackUrl })}
-            className="w-full flex items-center justify-center gap-3 p-4 rounded-xl border-2 border-black/10 hover:border-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/5 transition-all"
+            disabled
+            className="w-full flex flex-col items-center justify-center gap-2 p-3 rounded-xl border-2 border-black/10 opacity-60 cursor-not-allowed"
           >
-            <svg className="w-5 h-5" viewBox="0 0 23 23">
-              <path fill="#f35325" d="M1 1h10v10H1z"/>
-              <path fill="#81bc06" d="M12 1h10v10H12z"/>
-              <path fill="#05a6f0" d="M1 12h10v10H1z"/>
-              <path fill="#ffba08" d="M12 12h10v10H12z"/>
-            </svg>
-            <span className="font-medium">Continue with Microsoft</span>
+            <div className="flex items-center gap-3">
+              <svg className="w-5 h-5" viewBox="0 0 23 23">
+                <path fill="#f35325" d="M1 1h10v10H1z"/>
+                <path fill="#81bc06" d="M12 1h10v10H12z"/>
+                <path fill="#05a6f0" d="M1 12h10v10H1z"/>
+                <path fill="#ffba08" d="M12 12h10v10H12z"/>
+              </svg>
+              <span className="font-medium">Continue with Microsoft</span>
+            </div>
+            <span className="text-xs text-amber-600 flex items-center gap-1">
+              <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="10"/>
+                <polyline points="12 6 12 12 16 14"/>
+              </svg>
+              Coming Soon
+            </span>
           </button>
 
           <p className="mt-6 text-center text-xs text-[var(--foreground-muted)]">
