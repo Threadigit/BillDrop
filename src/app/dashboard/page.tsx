@@ -303,7 +303,10 @@ export default function DashboardPage() {
           ) : activeSubscriptions.length === 0 ? (
             <div className="p-12 text-center">
               <p className="text-[var(--foreground-muted)] mb-4">No subscriptions found yet.</p>
-              <button className="btn-primary text-sm py-2 px-4">
+              <button 
+                onClick={() => setShowScanner(true)}
+                className="btn-primary text-sm py-2 px-4"
+              >
                 Scan your emails to find subscriptions
               </button>
             </div>
