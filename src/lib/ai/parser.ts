@@ -26,6 +26,7 @@ IMPORTANT RULES:
 3. Extract the service/company name from the sender or email content
 4. If you see "monthly", "annual", "subscription", "recurring", "renews" - it's likely a subscription
 5. Even one-time purchases from subscription services (like Suno, Spotify, Netflix) should be reported
+6. Look for keywords like 'Receipt', 'Invoice', 'Your subscription has renewed', 'Next billing date', 'Thank you for your purchase', 'Order Confirmation', and 'Automatic renewal'. 
 
 Return ONLY valid JSON:
 {

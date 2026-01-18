@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mail, Search, CheckCircle, AlertCircle, Loader2, Sparkles, X } from 'lucide-react';
+import { Mail, CheckCircle, AlertCircle, Loader2, X, Zap } from 'lucide-react';
 
 interface FoundSubscription {
   id: string;
@@ -35,6 +35,11 @@ const formatCurrency = (amount: number, currency: string) => {
   const symbol = CURRENCY_SYMBOLS[currency] || currency + ' ';
   return `${symbol}${amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 };
+
+// Logo brand color - indigo/purple
+const BRAND_COLOR = '#6366f1';
+const BRAND_COLOR_LIGHT = '#818cf8';
+const BRAND_COLOR_DARK = '#4f46e5';
 
 export default function EmailScanner({ onClose, onScanComplete, onSubscriptionFound }: EmailScannerProps) {
   const [status, setStatus] = useState<'idle' | 'scanning' | 'complete' | 'error'>('idle');
@@ -92,7 +97,6 @@ export default function EmailScanner({ onClose, onScanComplete, onSubscriptionFo
                 case 'subscription':
                   const newSub = data.subscription;
                   setFoundSubscriptions(prev => [...prev, newSub]);
-                  // Immediately notify parent to add to main list
                   onSubscriptionFound(newSub);
                   break;
                   
@@ -120,13 +124,12 @@ export default function EmailScanner({ onClose, onScanComplete, onSubscriptionFo
     }
   }, [onSubscriptionFound]);
 
-  // Auto-start scan when component mounts
   useEffect(() => {
     startScan();
   }, [startScan]);
 
   const handleClose = () => {
-    if (status === 'scanning') return; // Prevent closing during scan
+    if (status === 'scanning') return;
     scanStartedRef.current = false;
     if (status === 'complete') {
       onScanComplete();
@@ -136,89 +139,181 @@ export default function EmailScanner({ onClose, onScanComplete, onSubscriptionFo
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: -20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -20 }}
-      className="bg-white rounded-2xl shadow-lg border border-gray-100 mb-6 overflow-hidden"
+      initial={{ opacity: 0, y: -20, scale: 0.98 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: -20, scale: 0.98 }}
+      transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+      className="bg-white rounded-2xl shadow-xl border border-indigo-100 mb-6 overflow-hidden"
     >
-      {/* Header */}
-      <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-violet-50 to-purple-50">
+      {/* Header with gradient */}
+      <div 
+        className="p-4 flex items-center justify-between"
+        style={{ 
+          background: `linear-gradient(135deg, ${BRAND_COLOR} 0%, ${BRAND_COLOR_DARK} 100%)` 
+        }}
+      >
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
-            <Mail className="w-5 h-5 text-white" />
+          <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
+            {status === 'scanning' ? (
+              <Loader2 className="w-5 h-5 text-white animate-spin" />
+            ) : status === 'complete' ? (
+              <CheckCircle className="w-5 h-5 text-white" />
+            ) : status === 'error' ? (
+              <AlertCircle className="w-5 h-5 text-white" />
+            ) : (
+              <Mail className="w-5 h-5 text-white" />
+            )}
           </div>
           <div>
-            <h2 className="text-lg font-semibold text-gray-900">Scanning Emails</h2>
-            <p className="text-sm text-gray-500">{statusMessage || 'Finding your subscriptions...'}</p>
+            <h2 className="text-lg font-semibold text-white">
+              {status === 'scanning' ? 'Scanning Emails' : 
+               status === 'complete' ? 'Scan Complete' :
+               status === 'error' ? 'Scan Failed' : 'Email Scanner'}
+            </h2>
+            <p className="text-sm text-white/80">{statusMessage || 'Finding your subscriptions...'}</p>
           </div>
         </div>
         {status !== 'scanning' && (
           <button
             onClick={handleClose}
-            className="p-2 hover:bg-white/50 rounded-lg transition-colors"
+            className="p-2 hover:bg-white/10 rounded-lg transition-colors"
           >
-            <X className="w-5 h-5 text-gray-400" />
+            <X className="w-5 h-5 text-white" />
           </button>
         )}
       </div>
 
-      {/* Progress */}
-      <div className="px-4 py-3">
+      {/* V2 Progress Bar */}
+      <div className="px-4 py-4 bg-gradient-to-b from-indigo-50/50 to-white">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-xs font-medium text-gray-500">
-            {status === 'scanning' && emailsFound > 0 && `Analyzing ${emailsFound} emails`}
-            {status === 'complete' && 'Scan complete'}
-            {status === 'error' && 'Scan failed'}
+          <div className="flex items-center gap-2">
+            {status === 'scanning' && (
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
+                className="w-4 h-4"
+              >
+                <Zap className="w-4 h-4 text-indigo-500" />
+              </motion.div>
+            )}
+            <span className="text-sm font-medium text-gray-700">
+              {status === 'scanning' && emailsFound > 0 && `Processing ${emailsFound} emails`}
+              {status === 'complete' && `Completed • ${foundSubscriptions.length} found`}
+              {status === 'error' && 'Error occurred'}
+            </span>
+          </div>
+          <span 
+            className="text-sm font-bold"
+            style={{ color: BRAND_COLOR }}
+          >
+            {progress}%
           </span>
-          <span className="text-xs font-bold text-violet-600">{progress}%</span>
         </div>
-        <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+        
+        {/* Progress track v2 - with glow effect */}
+        <div className="relative h-3 bg-gray-100 rounded-full overflow-hidden shadow-inner">
+          {/* Background shimmer */}
+          {status === 'scanning' && (
+            <motion.div
+              className="absolute inset-0 opacity-30"
+              style={{
+                background: `linear-gradient(90deg, transparent, ${BRAND_COLOR_LIGHT}, transparent)`,
+              }}
+              animate={{ x: ['-100%', '100%'] }}
+              transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}
+            />
+          )}
+          
+          {/* Progress fill */}
           <motion.div
-            className={`h-full rounded-full ${status === 'error' ? 'bg-red-500' : 'bg-gradient-to-r from-violet-500 to-purple-600'}`}
+            className="h-full rounded-full relative overflow-hidden"
+            style={{
+              background: status === 'error' 
+                ? 'linear-gradient(90deg, #ef4444, #dc2626)'
+                : `linear-gradient(90deg, ${BRAND_COLOR}, ${BRAND_COLOR_DARK})`,
+              boxShadow: status !== 'error' ? `0 0 10px ${BRAND_COLOR}40` : undefined,
+            }}
             initial={{ width: 0 }}
             animate={{ width: `${progress}%` }}
-            transition={{ duration: 0.3 }}
-          />
+            transition={{ duration: 0.4, ease: 'easeOut' }}
+          >
+            {/* Shine effect */}
+            <motion.div
+              className="absolute inset-0"
+              style={{
+                background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.3) 50%, transparent 100%)',
+              }}
+              animate={{ x: ['-100%', '200%'] }}
+              transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut', repeatDelay: 0.5 }}
+            />
+          </motion.div>
         </div>
+        
+        {/* Stage indicators */}
+        {status === 'scanning' && (
+          <div className="flex justify-between mt-2 text-xs text-gray-400">
+            <span className={progress >= 5 ? 'text-indigo-500 font-medium' : ''}>Connect</span>
+            <span className={progress >= 20 ? 'text-indigo-500 font-medium' : ''}>Fetch</span>
+            <span className={progress >= 30 ? 'text-indigo-500 font-medium' : ''}>Filter</span>
+            <span className={progress >= 50 ? 'text-indigo-500 font-medium' : ''}>Analyze</span>
+            <span className={progress >= 95 ? 'text-indigo-500 font-medium' : ''}>Done</span>
+          </div>
+        )}
       </div>
 
-      {/* Found subscriptions - compact inline list */}
+      {/* Found subscriptions - compact pills */}
       {foundSubscriptions.length > 0 && (
-        <div className="px-4 pb-4">
-          <div className="flex items-center gap-2 mb-2">
-            <CheckCircle className="w-4 h-4 text-green-500" />
+        <div className="px-4 pb-4 border-t border-gray-100">
+          <div className="flex items-center gap-2 pt-3 pb-2">
+            <CheckCircle className="w-4 h-4" style={{ color: BRAND_COLOR }} />
             <span className="text-sm font-medium text-gray-700">
               Found {foundSubscriptions.length} subscription{foundSubscriptions.length !== 1 ? 's' : ''}
             </span>
           </div>
           <div className="flex flex-wrap gap-2">
-            {foundSubscriptions.map((sub) => (
+            {foundSubscriptions.map((sub, index) => (
               <motion.div
                 key={sub.id}
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="inline-flex items-center gap-2 px-3 py-1.5 bg-green-50 text-green-700 rounded-full text-sm border border-green-100"
+                initial={{ opacity: 0, scale: 0.8, y: 10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                transition={{ delay: index * 0.05 }}
+                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm border"
+                style={{ 
+                  backgroundColor: `${BRAND_COLOR}10`,
+                  borderColor: `${BRAND_COLOR}30`,
+                  color: BRAND_COLOR_DARK
+                }}
               >
                 <span className="font-medium">{sub.serviceName}</span>
-                <span className="text-green-600">{formatCurrency(sub.amount, sub.currency)}</span>
+                <span className="opacity-70">{formatCurrency(sub.amount, sub.currency)}</span>
               </motion.div>
             ))}
           </div>
         </div>
       )}
 
-      {/* Scanning animation */}
-      {status === 'scanning' && foundSubscriptions.length === 0 && progress > 20 && (
-        <div className="px-4 pb-4 flex items-center gap-3">
-          <Loader2 className="w-5 h-5 animate-spin text-violet-600" />
+      {/* Scanning animation when no results yet */}
+      {status === 'scanning' && foundSubscriptions.length === 0 && progress > 30 && (
+        <div className="px-4 pb-4 flex items-center gap-3 border-t border-gray-100 pt-3">
+          <div className="flex gap-1">
+            {[0, 1, 2].map(i => (
+              <motion.div
+                key={i}
+                className="w-2 h-2 rounded-full"
+                style={{ backgroundColor: BRAND_COLOR }}
+                animate={{ opacity: [0.3, 1, 0.3] }}
+                transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.2 }}
+              />
+            ))}
+          </div>
           <span className="text-sm text-gray-500">Analyzing emails for subscriptions...</span>
         </div>
       )}
 
       {/* Error state */}
       {status === 'error' && (
-        <div className="px-4 pb-4">
-          <div className="flex items-center gap-2 text-red-600">
+        <div className="px-4 pb-4 border-t border-gray-100 pt-3">
+          <div className="flex items-center gap-2 text-red-600 mb-2">
             <AlertCircle className="w-4 h-4" />
             <span className="text-sm">{error}</span>
           </div>
@@ -227,7 +322,8 @@ export default function EmailScanner({ onClose, onScanComplete, onSubscriptionFo
               scanStartedRef.current = false;
               startScan();
             }}
-            className="mt-2 text-sm text-violet-600 hover:text-violet-700 font-medium"
+            className="text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+            style={{ backgroundColor: `${BRAND_COLOR}10`, color: BRAND_COLOR }}
           >
             Try again
           </button>
@@ -236,8 +332,8 @@ export default function EmailScanner({ onClose, onScanComplete, onSubscriptionFo
 
       {/* Complete state */}
       {status === 'complete' && (
-        <div className="px-4 pb-4 flex items-center justify-between">
-          <div className="flex items-center gap-2 text-green-600">
+        <div className="px-4 pb-4 flex items-center justify-between border-t border-gray-100 pt-3">
+          <div className="flex items-center gap-2" style={{ color: BRAND_COLOR }}>
             <CheckCircle className="w-4 h-4" />
             <span className="text-sm font-medium">
               {foundSubscriptions.length > 0 
@@ -247,7 +343,8 @@ export default function EmailScanner({ onClose, onScanComplete, onSubscriptionFo
           </div>
           <button
             onClick={handleClose}
-            className="text-sm text-violet-600 hover:text-violet-700 font-medium"
+            className="text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+            style={{ backgroundColor: BRAND_COLOR, color: 'white' }}
           >
             Done
           </button>

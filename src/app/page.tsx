@@ -1,14 +1,15 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Mail, Bell, Zap, Shield, ArrowRight, CheckCircle, CreditCard, Calendar } from 'lucide-react';
+import { Mail, Bell, Zap, Shield, ArrowRight, CheckCircle, CreditCard, Calendar, Clock } from 'lucide-react';
 import Image from 'next/image';
+import Link from 'next/link';
 
 // Animation variants
 const fadeInUp = {
   initial: { opacity: 0, y: 30 },
   animate: { opacity: 1, y: 0 },
-  transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1] }
+  transition: { duration: 0.6, ease: 'easeOut' as const }
 };
 
 const staggerContainer = {
@@ -71,8 +72,8 @@ export default function LandingPage() {
             <span className="font-semibold text-xl">BillDrop</span>
           </div>
           <div className="flex items-center gap-4">
-            <button className="btn-secondary text-sm py-2 px-4 hidden sm:block">Log in</button>
-            <button className="btn-primary text-sm py-2 px-4">Get Started</button>
+            <Link href="/login" className="btn-secondary text-sm py-2 px-4 hidden sm:block">Log in</Link>
+            <Link href="/login" className="btn-primary text-sm py-2 px-4">Get Started</Link>
           </div>
         </div>
       </nav>
@@ -114,13 +115,19 @@ export default function LandingPage() {
               </motion.p>
               
               <motion.div {...fadeInUp} className="flex flex-col sm:flex-row gap-3 justify-center lg:justify-start">
-                <button className="btn-primary flex items-center justify-center gap-2 text-sm py-3 px-5">
+                <Link href="/login" className="btn-primary flex items-center justify-center gap-2 text-sm py-3 px-5">
                   <Mail className="w-4 h-4" />
                   Connect with Gmail
-                </button>
-                <button className="btn-secondary flex items-center justify-center gap-2 text-sm py-3 px-5">
+                </Link>
+                <button 
+                  className="btn-secondary flex items-center justify-center gap-2 text-sm py-3 px-5 opacity-70 cursor-not-allowed"
+                  disabled
+                >
                   Connect with Outlook
-                  <ArrowRight className="w-4 h-4" />
+                  <span className="flex items-center gap-1 text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">
+                    <Clock className="w-3 h-3" />
+                    Coming Soon
+                  </span>
                 </button>
               </motion.div>
               
@@ -380,9 +387,9 @@ export default function LandingPage() {
               </h2>
               
               {/* MIDDLE: CTA Button */}
-              <button className="bg-white text-[var(--accent-primary)] font-semibold px-10 py-4 rounded-full hover:scale-105 transition-transform shadow-lg text-lg mb-8">
+              <Link href="/login" className="inline-block bg-white text-[var(--accent-primary)] font-semibold px-10 py-4 rounded-full hover:scale-105 transition-transform shadow-lg text-lg mb-8">
                 Get Started Free
-              </button>
+              </Link>
               
               {/* BOTTOM: Trust Indicators */}
               <div className="flex flex-wrap justify-center gap-6 text-sm text-white/80">
