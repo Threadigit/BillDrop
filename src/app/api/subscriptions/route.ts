@@ -22,10 +22,31 @@ export async function GET() {
     });
 
     if (!user) {
-      return NextResponse.json({ subscriptions: [] });
+      return NextResponse.json({ subscriptions: [], cancelledThisMonth: [] });
     }
 
-    return NextResponse.json({ subscriptions: user.subscriptions });
+    // Get cancelled subscriptions from this month for savings calculation
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+
+    // Only cancelled (confirmed) subscriptions count toward savings
+    const cancelledThisMonth = user.subscriptions.filter(sub => 
+      sub.status === 'cancelled' && 
+      sub.confirmed === true &&  // Must be confirmed first
+      sub.cancelledAt && 
+      new Date(sub.cancelledAt) >= startOfMonth
+    );
+
+    // Active subscriptions exclude both cancelled and dismissed
+    const activeSubscriptions = user.subscriptions.filter(sub => 
+      sub.status !== 'cancelled' && sub.status !== 'dismissed'
+    );
+
+    return NextResponse.json({ 
+      subscriptions: activeSubscriptions,
+      cancelledThisMonth: cancelledThisMonth,
+    });
   } catch (error) {
     console.error('Error fetching subscriptions:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

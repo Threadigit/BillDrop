@@ -80,6 +80,7 @@ function getDaysUntil(date: Date | null): number {
 export default function DashboardPage() {
   const { data: session, status } = useSession();
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
+  const [savedThisMonth, setSavedThisMonth] = useState(0);
   const [loading, setLoading] = useState(true);
   const [showScanner, setShowScanner] = useState(false);
 
@@ -91,12 +92,19 @@ export default function DashboardPage() {
           const data = await res.json();
           // Use actual data from database, empty if none
           setSubscriptions(data.subscriptions || []);
+          
+          // Calculate savings from cancelled subscriptions this month
+          const cancelled = data.cancelledThisMonth || [];
+          const totalSaved = cancelled.reduce((sum: number, sub: { amount: number }) => sum + sub.amount, 0);
+          setSavedThisMonth(totalSaved);
         } else {
           setSubscriptions([]);
+          setSavedThisMonth(0);
         }
       } catch (error) {
         console.error('Error fetching subscriptions:', error);
         setSubscriptions([]);
+        setSavedThisMonth(0);
       } finally {
         setLoading(false);
       }
@@ -141,28 +149,51 @@ export default function DashboardPage() {
     }
   };
 
+  // Mark as "Not a Subscription" - uses 'dismissed' status (doesn't count as savings)
   const handleCancel = async (subscription: Subscription) => {
     try {
       const res = await fetch('/api/subscriptions', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: subscription.id, status: 'cancelled' }),
+        body: JSON.stringify({ id: subscription.id, status: 'dismissed' }),
       });
       if (res.ok) {
         setSubscriptions(prev => prev.filter(s => s.id !== subscription.id));
       }
     } catch (error) {
-      console.error('Error cancelling subscription:', error);
+      console.error('Error dismissing subscription:', error);
+    }
+  };
+
+  // Mark a confirmed subscription as cancelled (adds to savings)
+  const handleMarkCancelled = async (subscription: Subscription) => {
+    try {
+      const res = await fetch('/api/subscriptions', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: subscription.id, status: 'cancelled', confirmed: true }),
+      });
+      if (res.ok) {
+        // Remove from list and add to savings
+        setSubscriptions(prev => prev.filter(s => s.id !== subscription.id));
+        setSavedThisMonth(prev => prev + subscription.amount);
+      }
+    } catch (error) {
+      console.error('Error marking subscription as cancelled:', error);
     }
   };
 
   const handleScanComplete = () => {
-    // Refresh subscriptions after scan completes
+    // Refresh subscriptions and savings after scan completes
     fetch('/api/subscriptions')
       .then(res => res.json())
       .then(data => {
         if (data.subscriptions) {
           setSubscriptions(data.subscriptions);
+        }
+        if (data.cancelledThisMonth) {
+          const totalSaved = data.cancelledThisMonth.reduce((sum: number, sub: { amount: number }) => sum + sub.amount, 0);
+          setSavedThisMonth(totalSaved);
         }
       });
   };
@@ -256,7 +287,7 @@ export default function DashboardPage() {
         {/* Stats Cards - Using StatsBar component */}
         <StatsBar
           totalMonthly={totalMonthly}
-          totalSaved={45.00}
+          totalSaved={savedThisMonth}
           activeCount={activeSubscriptions.length}
           reviewCount={needsReview}
           upcomingCount={upcomingRenewals}
@@ -319,6 +350,7 @@ export default function DashboardPage() {
                   index={index}
                   onConfirm={!sub.confirmed ? handleConfirm : undefined}
                   onCancel={!sub.confirmed ? handleCancel : undefined}
+                  onMarkCancelled={sub.confirmed ? handleMarkCancelled : undefined}
                 />
               ))}
             </div>

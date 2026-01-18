@@ -22,6 +22,14 @@ interface StatCardProps {
   delay: number;
 }
 
+// Format currency with proper commas and decimals
+function formatCurrency(amount: number): string {
+  return amount.toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
 function StatCard({ icon, iconBgClass, value, label, badge, badgeClass, valueClass, delay }: StatCardProps) {
   return (
     <motion.div 
@@ -52,7 +60,7 @@ export function StatsBar({ totalMonthly, totalSaved, activeCount, reviewCount, u
       <StatCard
         icon={<CreditCard className="w-6 h-6 text-[var(--accent-primary)]" />}
         iconBgClass="bg-gradient-to-br from-[var(--accent-primary)]/10 to-[var(--accent-primary)]/5"
-        value={`$${totalMonthly.toFixed(2)}`}
+        value={`$${formatCurrency(totalMonthly)}`}
         label="Total spending"
         badge="Monthly"
         badgeClass="bg-[var(--accent-primary)]/10 text-[var(--accent-primary)]"
@@ -62,7 +70,7 @@ export function StatsBar({ totalMonthly, totalSaved, activeCount, reviewCount, u
       <StatCard
         icon={<TrendingDown className="w-6 h-6 text-green-600" />}
         iconBgClass="bg-gradient-to-br from-green-500/10 to-green-500/5"
-        value={`$${totalSaved.toFixed(2)}`}
+        value={`$${formatCurrency(totalSaved)}`}
         label="This month"
         badge="Saved"
         badgeClass="bg-green-100 text-green-700"

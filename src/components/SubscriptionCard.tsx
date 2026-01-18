@@ -23,6 +23,7 @@ interface SubscriptionCardProps {
   onClick?: (subscription: Subscription) => void;
   onConfirm?: (subscription: Subscription) => void;
   onCancel?: (subscription: Subscription) => void;
+  onMarkCancelled?: (subscription: Subscription) => void;
 }
 
 // Default service colors and icons
@@ -79,7 +80,7 @@ function formatDate(date: Date | null): string {
   return new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-export function SubscriptionCard({ subscription, index = 0, onClick, onConfirm, onCancel }: SubscriptionCardProps) {
+export function SubscriptionCard({ subscription, index = 0, onClick, onConfirm, onCancel, onMarkCancelled }: SubscriptionCardProps) {
   const defaults = getServiceDefaults(subscription.serviceName);
   const icon = subscription.icon || defaults.icon;
   const color = subscription.color || defaults.color;
@@ -127,7 +128,7 @@ export function SubscriptionCard({ subscription, index = 0, onClick, onConfirm, 
         <ChevronRight className="w-5 h-5 text-[var(--foreground-muted)]" />
       </div>
 
-      {/* Action buttons shown on hover/focus for unconfirmed items */}
+      {/* Action buttons for unconfirmed items */}
       {!subscription.confirmed && (onConfirm || onCancel) && (
         <div className="mt-4 flex gap-2 justify-end">
           {onConfirm && (
@@ -141,11 +142,23 @@ export function SubscriptionCard({ subscription, index = 0, onClick, onConfirm, 
           {onCancel && (
             <button
               onClick={(e) => { e.stopPropagation(); onCancel(subscription); }}
-              className="px-3 py-1.5 text-xs font-medium rounded-lg bg-red-100 text-red-700 hover:bg-red-200 transition-colors"
+              className="px-3 py-1.5 text-xs font-medium rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
             >
-              Not Subscription
+              Not a Subscription
             </button>
           )}
+        </div>
+      )}
+
+      {/* Mark as Cancelled button for confirmed subscriptions */}
+      {subscription.confirmed && onMarkCancelled && (
+        <div className="mt-4 flex gap-2 justify-end">
+          <button
+            onClick={(e) => { e.stopPropagation(); onMarkCancelled(subscription); }}
+            className="px-3 py-1.5 text-xs font-medium rounded-lg bg-red-100 text-red-700 hover:bg-red-200 transition-colors"
+          >
+            I Cancelled This
+          </button>
         </div>
       )}
     </motion.div>
