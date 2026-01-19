@@ -8,6 +8,13 @@ import { parseEmailWithAI, parseEmailFallback } from '@/lib/ai/parser';
 
 export const dynamic = 'force-dynamic';
 
+// Vercel serverless function config - extend timeout
+export const maxDuration = 60; // Max 60 seconds for Vercel Pro, 10 for Hobby
+
+// Limit emails to process to stay within timeout
+const MAX_EMAILS_TO_FETCH = 50;
+const MAX_EMAILS_TO_PARSE = 25;
+
 // Process multiple emails in parallel for speed
 async function processEmailBatch(
   emails: FilteredEmail[],
@@ -51,26 +58,61 @@ async function processEmailBatch(
               },
             });
 
-            if (!existing) {
-              // Create new subscription (all start as unconfirmed for review)
-              const subscription = await prisma.subscription.create({
-                data: {
-                  userId: userId,
-                  serviceName: parsed.serviceName,
-                  serviceSlug: parsed.serviceName.toLowerCase().replace(/\s+/g, '-'),
-                  amount: parsed.amount,
-                  currency: parsed.currency,
-                  billingCycle: parsed.billingCycle,
-                  nextBillingDate: parsed.nextBillingDate ? new Date(parsed.nextBillingDate) : null,
-                  cancellationUrl: parsed.cancellationUrl,
-                  confidence: parsed.confidence,
-                  detectedFrom: 'email',
-                  confirmed: false, // All require user confirmation
-                },
-              });
-
-              return subscription;
+            if (existing) {
+              return {
+                id: existing.id,
+                serviceName: existing.serviceName,
+                description: existing.description,
+                amount: existing.amount,
+                currency: existing.currency,
+                billingCycle: existing.billingCycle,
+                confidence: existing.confidence,
+              };
             }
+
+            // Skip zero-amount subscriptions unless it's a trial
+            const isTrial = (parsed.description?.toLowerCase().includes('trial') || 
+                            parsed.serviceName.toLowerCase().includes('trial'));
+            if (parsed.amount === 0 && !isTrial) {
+              console.log(`[Scan] Skipped ${parsed.serviceName}: $0 and not a trial`);
+              return null;
+            }
+
+            // Calculate next billing date if not provided
+            let nextBillingDate: Date | null = null;
+            if (parsed.nextBillingDate) {
+              nextBillingDate = new Date(parsed.nextBillingDate);
+            } else {
+              // Calculate based on billing cycle from today
+              const today = new Date();
+              if (parsed.billingCycle === 'monthly') {
+                nextBillingDate = new Date(today.setMonth(today.getMonth() + 1));
+              } else if (parsed.billingCycle === 'yearly') {
+                nextBillingDate = new Date(today.setFullYear(today.getFullYear() + 1));
+              } else if (parsed.billingCycle === 'weekly') {
+                nextBillingDate = new Date(today.setDate(today.getDate() + 7));
+              }
+            }
+
+            // Create new subscription (all start as unconfirmed for review)
+            const subscription = await prisma.subscription.create({
+              data: {
+                userId: userId,
+                serviceName: parsed.serviceName,
+                serviceSlug: parsed.serviceName.toLowerCase().replace(/\s+/g, '-'),
+                description: parsed.description,
+                amount: parsed.amount,
+                currency: parsed.currency,
+                billingCycle: parsed.billingCycle,
+                nextBillingDate: nextBillingDate,
+                cancellationUrl: parsed.cancellationUrl,
+                confidence: parsed.confidence,
+                detectedFrom: 'email',
+                confirmed: false, // All require user confirmation
+              },
+            });
+
+            return subscription;
           }
           return null;
         } catch (parseError) {
@@ -157,11 +199,11 @@ export async function GET(request: NextRequest) {
           return;
         }
 
-        // Step 2: Fetch emails
+        // Step 2: Fetch emails (limited to prevent timeout)
         sendEvent({ type: 'status', message: 'Fetching emails...', progress: 10 });
         
         console.log('[Scan] Starting email fetch...');
-        const emails = await fetchGmailEmails(accessToken, 100);
+        const emails = await fetchGmailEmails(accessToken, MAX_EMAILS_TO_FETCH);
         console.log(`[Scan] Fetched ${emails.length} emails`);
         
         sendEvent({ type: 'status', message: `Found ${emails.length} emails to analyze...`, progress: 20, emailsFound: emails.length });
@@ -175,8 +217,14 @@ export async function GET(request: NextRequest) {
         // Step 3: Filter emails
         sendEvent({ type: 'status', message: 'Filtering subscription emails...', progress: 25 });
         
-        const filteredEmails = filterSubscriptionEmails(emails);
+        let filteredEmails = filterSubscriptionEmails(emails);
         console.log(`[Scan] Filtered to ${filteredEmails.length} potential subscription emails`);
+        
+        // Limit the number of emails to parse to stay within timeout
+        if (filteredEmails.length > MAX_EMAILS_TO_PARSE) {
+          console.log(`[Scan] Limiting to ${MAX_EMAILS_TO_PARSE} emails (from ${filteredEmails.length})`);
+          filteredEmails = filteredEmails.slice(0, MAX_EMAILS_TO_PARSE);
+        }
         
         // Log why emails passed the filter
         for (const email of filteredEmails.slice(0, 5)) {

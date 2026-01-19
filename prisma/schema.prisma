@@ -75,6 +75,7 @@ model Subscription {
   // Service Info
   serviceName     String
   serviceSlug     String?
+  description     String?   // e.g. "Premium Plan", "2TB Storage"
   logoUrl         String?
   
   // Billing Info

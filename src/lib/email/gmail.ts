@@ -79,134 +79,272 @@ async function refreshGoogleToken(refreshToken: string, accountId: string): Prom
   }
 }
 
-// Fetch emails from Gmail API
-export async function fetchGmailEmails(accessToken: string, maxResults = 150): Promise<EmailMessage[]> {
-  const emails: EmailMessage[] = [];
-  
-  // Search for common billing/subscription keywords in the last 30 days
+// Fetch ALL emails from Gmail API for the last 30 days using pagination
+export async function fetchGmailEmails(accessToken: string, maxEmails?: number): Promise<EmailMessage[]> {
+  // Smart query - include common subscription services in from: patterns
   const searchQuery = encodeURIComponent(
-    'newer_than:30d (subject:receipt OR subject:subscription OR subject:billing OR subject:invoice OR subject:payment OR subject:order OR subject:confirmation OR subject:charged OR subject:statement OR from:noreply OR from:billing OR from:receipt OR from:invoice)'
+    'newer_than:30d ' +
+    '(' +
+      'subject:(receipt OR subscription OR billing OR invoice OR payment OR charged OR renew OR renewal OR membership OR statement OR trial OR plan OR order) ' +
+      'OR from:(noreply OR billing OR receipt OR invoice OR orders OR amazon OR prime OR netflix OR hbo OR spotify OR apple OR google OR adobe) ' +
+      'OR "managed by billdrop"' + // Always include our own test emails if any
+    ') ' +
+    '-subject:(newsletter OR shipping OR shipped OR delivered OR tracking OR "verification code" OR "security alert" OR "password reset" OR refund OR return OR "job alert" OR "job recommendation" OR digest OR "new post" OR published) ' +
+    '-category:(social OR promotions) ' + // Try to exclude social/promotions if possible (though Gmail's categorization isn't perfect)
+    ''
   );
-  
   try {
-    console.log('[Gmail] Starting email fetch with query:', searchQuery.substring(0, 100) + '...');
-    console.log('[Gmail] Access token present:', !!accessToken, 'Length:', accessToken?.length);
+    console.log('[Gmail] Starting email fetch for last 30 days...');
+    console.log('[Gmail] Max emails:' + (maxEmails || 'unlimited'));
+    console.log('[Gmail] Access token present:', !!accessToken);
     
-    // List messages matching our search
-    const listResponse = await fetch(
-      `https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${searchQuery}&maxResults=${maxResults}`,
-      {
+    // Step 1: Fetch ALL message IDs using pagination
+    const allMessageIds: { id: string; threadId: string }[] = [];
+    let nextPageToken: string | undefined = undefined;
+    let pageCount = 0;
+    const MAX_PAGES = 20; // Safety limit to prevent infinite loops (20 pages × 100 = 2000 emails max)
+    
+    do {
+      pageCount++;
+      const pageUrl = `https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${searchQuery}&maxResults=100${nextPageToken ? `&pageToken=${nextPageToken}` : ''}`;
+      
+      console.log(`[Gmail] Fetching page ${pageCount}...`);
+      
+      const listResponse = await fetch(pageUrl, {
         headers: {
           Authorization: `Bearer ${accessToken}`,
         },
+      });
+
+      if (!listResponse.ok) {
+        const errorText = await listResponse.text();
+        console.error('[Gmail] List API error:', listResponse.status, errorText);
+        break;
       }
-    );
 
-    console.log('[Gmail] List API response status:', listResponse.status);
+      const listData: GmailListResponse = await listResponse.json();
+      
+      if (listData.messages && listData.messages.length > 0) {
+        allMessageIds.push(...listData.messages);
+        console.log(`[Gmail] Page ${pageCount}: found ${listData.messages.length} messages (total: ${allMessageIds.length})`);
+      }
+      
+      nextPageToken = listData.nextPageToken;
+
+      // Stop if we have enough emails
+      if (maxEmails && allMessageIds.length >= maxEmails) {
+        console.log(`[Gmail] Reached max emails limit (${maxEmails})`);
+        break;
+      }
+      
+    } while (nextPageToken && pageCount < MAX_PAGES);
     
-    if (!listResponse.ok) {
-      const errorText = await listResponse.text();
-      console.error('[Gmail] List API error:', listResponse.status, errorText);
-      return [];
+    // Apply strict limit if we over-fetched
+    if (maxEmails && allMessageIds.length > maxEmails) {
+      allMessageIds.splice(maxEmails);
     }
-
-    const listData: GmailListResponse = await listResponse.json();
-    console.log('[Gmail] Messages found:', listData.messages?.length || 0);
     
-    if (!listData.messages || listData.messages.length === 0) {
+    console.log(`[Gmail] Total messages found: ${allMessageIds.length} across ${pageCount} pages`);
+    
+    if (allMessageIds.length === 0) {
       console.log('[Gmail] No messages matched the search query');
       return [];
     }
 
-    // Fetch each message's details
-    for (const msg of listData.messages.slice(0, maxResults)) {
+    // Helper to recursively find text content in parts
+    const extractTextFromParts = (parts: GmailMessagePart[] | undefined): string => {
+      if (!parts) return '';
+      
+      for (const part of parts) {
+        // Check for nested parts (multipart/alternative, multipart/mixed, etc.)
+        if (part.parts) {
+          const nestedText = extractTextFromParts(part.parts);
+          if (nestedText) return nestedText;
+        }
+        
+        // Prefer text/plain
+        if (part.mimeType === 'text/plain' && part.body?.data) {
+          return Buffer.from(part.body.data, 'base64').toString('utf-8');
+        }
+      }
+      
+      // Fallback to HTML and strip tags
+      for (const part of parts) {
+        if (part.mimeType === 'text/html' && part.body?.data) {
+          const html = Buffer.from(part.body.data, 'base64').toString('utf-8');
+          // Basic HTML to text conversion
+          return html
+            .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+            .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+            .replace(/<[^>]+>/g, ' ')
+            .replace(/&nbsp;/g, ' ')
+            .replace(/&amp;/g, '&')
+            .replace(/&lt;/g, '<')
+            .replace(/&gt;/g, '>')
+            .replace(/\s+/g, ' ')
+            .trim();
+        }
+      }
+      
+      return '';
+    };
+
+    // Step 2: Fetch message details using Gmail Batch API (100 requests per HTTP call)
+    const BATCH_SIZE = 25; // Adjusted to 25 to avoid rate limits (429 errors)
+    const allEmails: EmailMessage[] = [];
+    
+    console.log(`[Gmail] Fetching message details using Batch API (${BATCH_SIZE} per request)...`);
+    
+    for (let i = 0; i < allMessageIds.length; i += BATCH_SIZE) {
+      const batch = allMessageIds.slice(i, i + BATCH_SIZE);
+      const batchNum = Math.floor(i / BATCH_SIZE) + 1;
+      const totalBatches = Math.ceil(allMessageIds.length / BATCH_SIZE);
+      
+      console.log(`[Gmail] Batch ${batchNum}/${totalBatches}: fetching ${batch.length} messages in single request...`);
+      
       try {
-        const msgResponse = await fetch(
-          `https://gmail.googleapis.com/gmail/v1/users/me/messages/${msg.id}?format=full`,
-          {
-            headers: {
-              Authorization: `Bearer ${accessToken}`,
-            },
-          }
-        );
-
-        if (!msgResponse.ok) continue;
-
-        const msgData: GmailMessageResponse = await msgResponse.json();
+        // Build multipart batch request body
+        const boundary = 'batch_billdrop_' + Date.now();
+        let batchBody = '';
         
-        // Extract headers
-        const headers = msgData.payload.headers;
-        const subject = headers.find(h => h.name.toLowerCase() === 'subject')?.value || '';
-        const from = headers.find(h => h.name.toLowerCase() === 'from')?.value || '';
-        const date = headers.find(h => h.name.toLowerCase() === 'date')?.value || '';
-
-        // Extract body - more robust extraction for multi-part emails
-        let body = '';
+        for (let j = 0; j < batch.length; j++) {
+          const msg = batch[j];
+          batchBody += `--${boundary}\r\n`;
+          batchBody += 'Content-Type: application/http\r\n';
+          batchBody += `Content-ID: <item${j}>\r\n\r\n`;
+          batchBody += `GET /gmail/v1/users/me/messages/${msg.id}?format=full\r\n\r\n`;
+        }
+        batchBody += `--${boundary}--`;
         
-        // Helper to recursively find text content in parts
-        const extractTextFromParts = (parts: GmailMessagePart[] | undefined): string => {
-          if (!parts) return '';
-          
-          for (const part of parts) {
-            // Check for nested parts (multipart/alternative, multipart/mixed, etc.)
-            if (part.parts) {
-              const nestedText = extractTextFromParts(part.parts);
-              if (nestedText) return nestedText;
+        // Send batch request
+        const batchResponse = await fetch('https://www.googleapis.com/batch/gmail/v1', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': `multipart/mixed; boundary=${boundary}`,
+          },
+          body: batchBody,
+        });
+        
+        if (!batchResponse.ok) {
+          console.error(`[Gmail] Batch request failed: ${batchResponse.status}`);
+          continue;
+        }
+        
+        // Parse multipart response
+        const responseText = await batchResponse.text();
+        const responseBoundary = batchResponse.headers.get('content-type')?.match(/boundary=(.+)/)?.[1];
+        
+        if (!responseBoundary) {
+          console.error('[Gmail] Could not parse response boundary');
+          continue;
+        }
+        
+        // Split response into parts
+        const parts = responseText.split(`--${responseBoundary}`).filter(part => {
+          const trimmed = part.trim();
+          // Filter out empty parts and the closing boundary marker "--"
+          return trimmed.length > 0 && trimmed !== '--';
+        });
+        
+        for (const part of parts) {
+          try {
+            // Find the start of the JSON body (it comes after the HTTP headers)
+            // Look for the first opening brace after the HTTP status line
+            const jsonStartIndex = part.indexOf('{');
+            if (jsonStartIndex === -1) {
+              continue;
             }
             
-            // Prefer text/plain
-            if (part.mimeType === 'text/plain' && part.body?.data) {
-              return Buffer.from(part.body.data, 'base64').toString('utf-8');
+            // Extract and parse JSON
+            const jsonStr = part.substring(jsonStartIndex);
+            let msgData: GmailMessageResponse;
+            try {
+              msgData = JSON.parse(jsonStr);
+            } catch (jsonErr) {
+               // Sometimes the part might have trailing boundary markers, try to trim
+               const lastBrace = jsonStr.lastIndexOf('}');
+               if (lastBrace !== -1) {
+                 try {
+                   msgData = JSON.parse(jsonStr.substring(0, lastBrace + 1));
+                 } catch (retryErr) {
+                   continue;
+                 }
+               } else {
+                 continue;
+               }
             }
-          }
-          
-          // Fallback to HTML and strip tags
-          for (const part of parts) {
-            if (part.mimeType === 'text/html' && part.body?.data) {
-              const html = Buffer.from(part.body.data, 'base64').toString('utf-8');
-              // Basic HTML to text conversion
-              return html
-                .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
-                .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
-                .replace(/<[^>]+>/g, ' ')
-                .replace(/&nbsp;/g, ' ')
-                .replace(/&amp;/g, '&')
-                .replace(/&lt;/g, '<')
-                .replace(/&gt;/g, '>')
-                .replace(/\s+/g, ' ')
-                .trim();
+            
+            if (!msgData.payload?.headers) {
+              continue;
             }
-          }
-          
-          return '';
-        };
+            
+            // Extract headers
+            const headers = msgData.payload.headers;
+            const subject = headers.find(h => h.name.toLowerCase() === 'subject')?.value || '';
+            const from = headers.find(h => h.name.toLowerCase() === 'from')?.value || '';
+            const date = headers.find(h => h.name.toLowerCase() === 'date')?.value || '';
 
-        if (msgData.payload.body?.data) {
-          body = Buffer.from(msgData.payload.body.data, 'base64').toString('utf-8');
-        } else if (msgData.payload.parts) {
-          body = extractTextFromParts(msgData.payload.parts);
+            // Extract body
+            let body = '';
+            
+            if (msgData.payload.body?.data) {
+              body = Buffer.from(msgData.payload.body.data, 'base64').toString('utf-8');
+            } else if (msgData.payload.parts) {
+              body = extractTextFromParts(msgData.payload.parts);
+            }
+            
+            // ALWAYS prepend snippet - it's Gmail's clean pre-parsed text
+            // This ensures we have actual text content even if body is mostly HTML/CSS
+            if (msgData.snippet) {
+              body = `SNIPPET: ${msgData.snippet} END_SNIPPET. ${body}`;
+            }
+
+            allEmails.push({
+              id: msgData.id,
+              threadId: msgData.threadId,
+              snippet: msgData.snippet,
+              subject,
+              from,
+              date,
+              body: body.substring(0, 5000), // Limit body size
+            });
+          } catch (parseError) {
+            // Skip malformed responses
+            console.error('[Gmail] Parse loop error:', parseError);
+            continue;
+          }
         }
         
-        // If still no body, use the snippet as fallback
-        if (!body && msgData.snippet) {
-          body = msgData.snippet;
-        }
-
-        emails.push({
-          id: msgData.id,
-          threadId: msgData.threadId,
-          snippet: msgData.snippet,
-          subject,
-          from,
-          date,
-          body: body.substring(0, 5000), // Limit body size
-        });
-      } catch (error) {
-        console.error('Error fetching message:', msg.id, error);
+        console.log(`[Gmail] Batch ${batchNum}: parsed ${parts.length} response parts`);
+        
+        console.log(`[Gmail] Batch ${batchNum}: parsed ${parts.length} responses, total emails: ${allEmails.length}`);
+        
+      } catch (batchError) {
+        console.error(`[Gmail] Batch ${batchNum} error:`, batchError);
+        // Continue with next batch
       }
     }
-
-    return emails;
+    // Safety net: Filter out any emails older than 30 days (in case Gmail search misses edge cases)
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    
+    const recentEmails = allEmails.filter(email => {
+      try {
+        const emailDate = new Date(email.date);
+        return emailDate >= thirtyDaysAgo;
+      } catch {
+        // If date parsing fails, include the email (Gmail already filtered by date)
+        return true;
+      }
+    });
+    
+    if (recentEmails.length < allEmails.length) {
+      console.log(`[Gmail] Filtered out ${allEmails.length - recentEmails.length} emails older than 30 days`);
+    }
+    
+    console.log('[Gmail] Successfully fetched', recentEmails.length, 'emails from last 30 days');
+    return recentEmails;
   } catch (error) {
     console.error('[Gmail] API error:', error);
     return [];

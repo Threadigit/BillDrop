@@ -10,6 +10,7 @@ import { useState, useEffect } from 'react';
 import { StatsBar } from '@/components/StatsBar';
 import { SubscriptionCard, Subscription } from '@/components/SubscriptionCard';
 import EmailScanner from '@/components/EmailScanner';
+import SubscriptionDetailModal from '@/components/SubscriptionDetailModal';
 
 // Mock subscription data for when database is empty or loading
 const mockSubscriptions: Subscription[] = [
@@ -83,6 +84,7 @@ export default function DashboardPage() {
   const [savedThisMonth, setSavedThisMonth] = useState(0);
   const [loading, setLoading] = useState(true);
   const [showScanner, setShowScanner] = useState(false);
+  const [selectedSubscription, setSelectedSubscription] = useState<Subscription | null>(null);
 
   useEffect(() => {
     async function fetchSubscriptions() {
@@ -93,9 +95,9 @@ export default function DashboardPage() {
           // Use actual data from database, empty if none
           setSubscriptions(data.subscriptions || []);
           
-          // Calculate savings from cancelled subscriptions this month
-          const cancelled = data.cancelledThisMonth || [];
-          const totalSaved = cancelled.reduce((sum: number, sub: { amount: number }) => sum + sub.amount, 0);
+          // Calculate total monthly savings from all cancelled subscriptions
+          const cancelled = data.allCancelledMonthly || [];
+          const totalSaved = cancelled.reduce((sum: number, sub: { monthlyAmount: number }) => sum + sub.monthlyAmount, 0);
           setSavedThisMonth(totalSaved);
         } else {
           setSubscriptions([]);
@@ -220,6 +222,32 @@ export default function DashboardPage() {
     });
   };
 
+  // Handle click on subscription card to open detail modal
+  const handleSubscriptionClick = (subscription: Subscription) => {
+    setSelectedSubscription(subscription);
+  };
+
+  // Update subscription via API
+  const handleUpdateSubscription = async (id: string, data: Partial<Subscription>) => {
+    const res = await fetch(`/api/subscriptions/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (res.ok) {
+      const updated = await res.json();
+      setSubscriptions(prev => prev.map(s => s.id === id ? { ...s, ...updated } : s));
+    }
+  };
+
+  // Delete subscription via API
+  const handleDeleteSubscription = async (id: string) => {
+    const res = await fetch(`/api/subscriptions/${id}`, { method: 'DELETE' });
+    if (res.ok) {
+      setSubscriptions(prev => prev.filter(s => s.id !== id));
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[var(--background)]">
       {/* Header */}
@@ -295,13 +323,15 @@ export default function DashboardPage() {
 
         {/* Action Buttons */}
         <div className="flex flex-wrap gap-3 mb-8">
-          <button 
-            onClick={() => setShowScanner(true)}
-            className="btn-primary flex items-center gap-2 text-sm py-3 px-5"
-          >
-            <Search className="w-4 h-4" />
-            Scan Emails
-          </button>
+          {!showScanner && (
+            <button 
+              onClick={() => setShowScanner(true)}
+              className="btn-primary flex items-center gap-2 text-sm py-3 px-5"
+            >
+              <Search className="w-4 h-4" />
+              Scan Emails
+            </button>
+          )}
           <button className="btn-secondary flex items-center gap-2 text-sm py-3 px-5">
             <Plus className="w-4 h-4" />
             Add Manually
@@ -332,14 +362,22 @@ export default function DashboardPage() {
               Loading subscriptions...
             </div>
           ) : activeSubscriptions.length === 0 ? (
-            <div className="p-12 text-center">
-              <p className="text-[var(--foreground-muted)] mb-4">No subscriptions found yet.</p>
-              <button 
-                onClick={() => setShowScanner(true)}
-                className="btn-primary text-sm py-2 px-4"
-              >
-                Scan your emails to find subscriptions
-              </button>
+            <div className="py-16 px-6 flex flex-col items-center justify-center">
+              <div className="w-16 h-16 rounded-2xl bg-slate-50 flex items-center justify-center mb-5">
+                <Search className="w-7 h-7 text-slate-300" />
+              </div>
+              <h3 className="text-lg font-semibold text-slate-800 mb-2">No subscriptions yet</h3>
+              <p className="text-sm text-slate-400 mb-6 max-w-xs text-center">
+                Scan your connected email to automatically find and track your subscriptions
+              </p>
+              {!showScanner && (
+                <button 
+                  onClick={() => setShowScanner(true)}
+                  className="btn-primary text-sm py-2.5 px-5"
+                >
+                  Scan Emails
+                </button>
+              )}
             </div>
           ) : (
             <div className="divide-y divide-black/5">
@@ -348,6 +386,7 @@ export default function DashboardPage() {
                   key={sub.id}
                   subscription={sub}
                   index={index}
+                  onClick={handleSubscriptionClick}
                   onConfirm={!sub.confirmed ? handleConfirm : undefined}
                   onCancel={!sub.confirmed ? handleCancel : undefined}
                   onMarkCancelled={sub.confirmed ? handleMarkCancelled : undefined}
@@ -356,6 +395,15 @@ export default function DashboardPage() {
             </div>
           )}
         </motion.div>
+
+        {/* Subscription Detail Modal */}
+        <SubscriptionDetailModal
+          subscription={selectedSubscription}
+          isOpen={selectedSubscription !== null}
+          onClose={() => setSelectedSubscription(null)}
+          onUpdate={handleUpdateSubscription}
+          onDelete={handleDeleteSubscription}
+        />
       </main>
     </div>
   );

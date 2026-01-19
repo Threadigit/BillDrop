@@ -51,7 +51,7 @@ const SERVICE_PATTERNS: Record<string, RegExp[]> = {
   slack: [/slack/i],
   zoom: [/zoom/i],
   microsoft: [/microsoft 365/i, /office 365/i, /onedrive/i, /xbox game pass/i],
-  google: [/google one/i, /google workspace/i, /google play/i],
+  google: [/google one/i, /google workspace/i, /google play/i, /your google play order/i, /google play receipt/i, /payments-noreply@google/i, /googleplay-noreply@google/i],
   dropbox: [/dropbox/i],
   evernote: [/evernote/i],
   todoist: [/todoist/i],
@@ -108,6 +108,7 @@ const SUBSCRIPTION_KEYWORDS = [
   'receipt',
   'payment',
   'charged',
+  'charge',
   'monthly',
   'yearly',
   'annual',
@@ -121,6 +122,7 @@ const SUBSCRIPTION_KEYWORDS = [
   'payment received',
   'payment successful',
   'thank you for your purchase',
+  'thank you for your order',
   'renews on',
   'will be charged',
   'credit card',
@@ -133,6 +135,16 @@ const SUBSCRIPTION_KEYWORDS = [
   'your account',
   'confirmation',
   'statement',
+  'trial',
+  'free trial',
+  'started',
+  'signed up',
+  'activated',
+  'welcome to',
+  'thanks for subscribing',
+  'total',
+  'amount',
+  'price',
 ];
 
 // Patterns to extract amounts - multi-currency support
@@ -199,6 +211,65 @@ function extractDynamicServiceName(subject: string, from: string): string | null
   return null;
 }
 
+// Extract domain name from sender email as a fallback
+function extractDomainFromSender(from: string): string | null {
+  // Match domain from email: billing@google.com -> google
+  const domainMatch = from.match(/@([a-z0-9-]+)\.(?:com|io|ai|co|org|net|dev|app)/i);
+  if (domainMatch) {
+    const domain = domainMatch[1].replace(/-/g, ' ');
+    // Skip generic domains
+    if (['gmail', 'yahoo', 'outlook', 'hotmail', 'mail', 'email'].includes(domain.toLowerCase())) {
+      return null;
+    }
+    // Capitalize
+    return domain.charAt(0).toUpperCase() + domain.slice(1).toLowerCase();
+  }
+  return null;
+}
+
+// Keywords that strongly indicate non-subscription emails (one-off purchases/shipping)
+const EXCLUSION_KEYWORDS = [
+  'shipped',
+  'shipping',
+  'tracking number',
+  'track your package',
+  'out for delivery',
+  'arriving',
+  'delivered',
+  'shipment',
+  'verification code',
+  'password reset',
+  'login alert',
+  'security alert',
+  'refund issued',
+  'refund processed',
+  'refund sent',
+  'return started',
+  'return label',
+  'return processed',
+  'job alert',
+  'job recommendation',
+  'new position',
+  'opportunities',
+  'apply now',
+  'linkedin', // Unless it's LinkedIn Premium (which usually says "Receipt" or "Subscription")
+  // Newsletter/Content specific
+  'daily digest',
+  'weekly digest',
+  'monthly digest',
+  'new post',
+  'published',
+  'read online',
+  'view in browser',
+  'story from',
+  // Bank statements (exclude these, but keep single "statement" for billing statements)
+  'account statement',
+  'bank statement',
+  'available balance',
+  'checking account',
+  'savings account',
+];
+
 export function filterSubscriptionEmails(
   emails: { id: string; subject: string; from: string; date: string; body: string }[]
 ): FilteredEmail[] {
@@ -206,6 +277,17 @@ export function filterSubscriptionEmails(
 
   for (const email of emails) {
     const content = `${email.subject} ${email.from} ${email.body}`.toLowerCase();
+    
+    // 0. Negative Filter: Exclude shipping/physical goods/alerts immediately
+    if (EXCLUSION_KEYWORDS.some(kw => content.includes(kw))) {
+      continue;
+    }
+
+    // 0b. Exclude bank statements with combination patterns
+    if (content.includes('monthly statement') && content.includes('account balance')) {
+      continue;
+    }
+
     const matchedKeywords: string[] = [];
     let confidence = 0;
     let extractedServiceName: string | null = null;
@@ -233,13 +315,20 @@ export function filterSubscriptionEmails(
       if (knownServiceFound) break;
     }
 
-    // If no known service found, try dynamic extraction (e.g., "Receipt from Suno")
     if (!knownServiceFound) {
       const dynamicName = extractDynamicServiceName(email.subject, email.from);
       if (dynamicName) {
         extractedServiceName = dynamicName;
         matchedKeywords.push(`dynamic:${dynamicName}`);
         confidence += 0.25; // Slightly lower confidence for unknown services
+      } else {
+        // Fallback: Extract domain from sender email
+        const domainName = extractDomainFromSender(email.from);
+        if (domainName) {
+          extractedServiceName = domainName;
+          matchedKeywords.push(`domain:${domainName}`);
+          confidence += 0.15; // Lower confidence for domain-only extraction
+        }
       }
     }
 
@@ -254,13 +343,39 @@ export function filterSubscriptionEmails(
       }
     }
 
-    // MUCH LOWER THRESHOLD: Include emails if they have ANY subscription keyword
-    // and either a known service, dynamic service, or amount
-    // This lets the AI do the heavy classification work
+    // Check for payment processors/stores
+    // FIXED: email.from does not contain "from:", it just has the name/email
+    const isPaymentProvider = /(apple|google|paypal|stripe|amazon|prime|klarna)/i.test(email.from);
+
+    // Check for strong keywords
+    const hasStrongKeyword = matchedKeywords.some(k => 
+      ['subscription', 'recurring', 'renewal', 'membership', 'plan', 'billing', 'trial', 'order receipt', 'your transaction'].includes(k)
+    );
+    
+    // Check for medium keywords (receipt, invoice) which need corroboration
+    const hasMediumKeyword = matchedKeywords.some(k => 
+      ['receipt', 'invoice', 'order', 'payment', 'transaction'].includes(k)
+    );
+
+    // OPTIMIZED LOGIC:
+    // 1. Known Service (High Confidence)
+    // 2. Extracted Service Name (Medium Confidence)
+    // 3. Strong Keyword (Subscription/Recurring) AND (Amount OR Payment Provider)
+    // 4. Medium Keyword (Receipt) AND Payment Provider AND Amount
+    
     const shouldInclude = 
-      (confidence >= 0.2 && matchedKeywords.length > 0) || // Basic threshold
-      (hasAmount && matchedKeywords.length > 0) || // Has money amounts
-      (extractedServiceName !== null); // Extracted a service name
+      knownServiceFound || 
+      !!extractedServiceName ||
+      hasStrongKeyword || // Relaxed: Just a strong keyword is usually enough for a potential list
+      (isPaymentProvider && hasAmount) || // Apple Receipt: $5.99
+      (isPaymentProvider && hasMediumKeyword) || // Payment Provider + "Order"/"Receipt" (catches $0.00 trials)
+      (hasMediumKeyword && hasAmount && matchedKeywords.length >= 2); // Receipt + Amount + one other hint 
+      knownServiceFound || // Known streaming/software service
+      extractedServiceName !== null || // Found a service name
+      (hasAmount && matchedKeywords.length > 0) || // Has $ and keywords
+      matchedKeywords.length >= 2 || // Multiple billing keywords
+      (hasStrongKeyword) || // Single strong keyword (captures zero-sum trials)
+      (isPaymentProvider && hasAmount); // From Apple/Google + Money involved
 
     if (shouldInclude) {
       filtered.push({
@@ -315,7 +430,7 @@ export function extractSubscriptionHints(email: FilteredEmail): {
     if (match) {
       const amountStr = match[0].replace(/[^\d.]/g, '');
       const amount = parseFloat(amountStr);
-      if (!isNaN(amount) && amount > 0) {
+      if (!isNaN(amount) && amount >= 0) {
         possibleAmount = amount;
         break;
       }

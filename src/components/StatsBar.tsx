@@ -71,8 +71,8 @@ export function StatsBar({ totalMonthly, totalSaved, activeCount, reviewCount, u
         icon={<TrendingDown className="w-6 h-6 text-green-600" />}
         iconBgClass="bg-gradient-to-br from-green-500/10 to-green-500/5"
         value={`$${formatCurrency(totalSaved)}`}
-        label="This month"
-        badge="Saved"
+        label="Monthly Savings"
+        badge="Total"
         badgeClass="bg-green-100 text-green-700"
         valueClass="text-green-600"
         delay={0.2}

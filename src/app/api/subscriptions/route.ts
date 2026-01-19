@@ -25,18 +25,23 @@ export async function GET() {
       return NextResponse.json({ subscriptions: [], cancelledThisMonth: [] });
     }
 
-    // Get cancelled subscriptions from this month for savings calculation
-    const startOfMonth = new Date();
-    startOfMonth.setDate(1);
-    startOfMonth.setHours(0, 0, 0, 0);
-
-    // Only cancelled (confirmed) subscriptions count toward savings
-    const cancelledThisMonth = user.subscriptions.filter(sub => 
+    // Get ALL cancelled subscriptions (confirmed) for total savings calculation
+    // Calculate monthly equivalent savings from cancelled subscriptions
+    const allCancelled = user.subscriptions.filter(sub => 
       sub.status === 'cancelled' && 
-      sub.confirmed === true &&  // Must be confirmed first
-      sub.cancelledAt && 
-      new Date(sub.cancelledAt) >= startOfMonth
+      sub.confirmed === true  // Must have been confirmed as a real subscription
     );
+
+    // Calculate total monthly savings (adjust yearly/weekly to monthly equivalent)
+    const allCancelledMonthly = allCancelled.map(sub => {
+      let monthlyAmount = sub.amount;
+      if (sub.billingCycle === 'yearly') {
+        monthlyAmount = sub.amount / 12;
+      } else if (sub.billingCycle === 'weekly') {
+        monthlyAmount = sub.amount * 4.33; // Average weeks per month
+      }
+      return { ...sub, monthlyAmount };
+    });
 
     // Active subscriptions exclude both cancelled and dismissed
     const activeSubscriptions = user.subscriptions.filter(sub => 
@@ -45,7 +50,7 @@ export async function GET() {
 
     return NextResponse.json({ 
       subscriptions: activeSubscriptions,
-      cancelledThisMonth: cancelledThisMonth,
+      allCancelledMonthly: allCancelledMonthly,
     });
   } catch (error) {
     console.error('Error fetching subscriptions:', error);

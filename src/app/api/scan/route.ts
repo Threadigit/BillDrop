@@ -8,8 +8,13 @@ import { getMockEmails } from '@/lib/email/mock-emails';
 import { parseEmailWithAI } from '@/lib/ai/parser';
 import { mockParseEmail } from '@/lib/ai/mock-parser';
 
+// Vercel serverless function config
+export const maxDuration = 60;
+
 const USE_MOCK_EMAILS = process.env.USE_MOCK_EMAILS === 'true';
 const USE_MOCK_AI = process.env.USE_MOCK_AI === 'true' || !process.env.OPENAI_API_KEY;
+const MAX_EMAILS_TO_FETCH = 50;
+const MAX_EMAILS_TO_PARSE = 20;
 
 export async function POST(request: NextRequest) {
   try {
@@ -63,7 +68,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Filter for subscription-related emails
-    const filteredEmails = filterSubscriptionEmails(emails);
+    let filteredEmails = filterSubscriptionEmails(emails);
+    
+    // Limit emails to parse to stay within timeout
+    if (filteredEmails.length > MAX_EMAILS_TO_PARSE) {
+      filteredEmails = filteredEmails.slice(0, MAX_EMAILS_TO_PARSE);
+    }
 
     // Parse emails for subscription data
     const pendingSubscriptions: Array<{
