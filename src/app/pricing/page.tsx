@@ -34,19 +34,19 @@ export default function PricingPage() {
               height={40} 
               className="rounded-xl"
             />
-            <span className="font-semibold text-xl">BillDrop</span>
+            <span className="font-semibold text-xl hidden sm:block">BillDrop</span>
           </Link>
           
-          {/* Center - Nav Links */}
-          <div className="hidden sm:flex items-center gap-8 absolute left-1/2 -translate-x-1/2">
+          {/* Center - Nav Links (visible on all screens) */}
+          <div className="flex items-center gap-4 sm:gap-8 sm:absolute sm:left-1/2 sm:-translate-x-1/2">
             <Link href="/pricing" className="text-sm font-medium text-[var(--accent-primary)]">Pricing</Link>
             <Link href="/#faq" className="text-sm text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors">FAQ</Link>
           </div>
           
           {/* Right - Actions */}
-          <div className="flex items-center gap-3">
-            <Link href="/login" className="btn-secondary text-sm py-2 px-4 hidden sm:block">Log in</Link>
-            <Link href="/login" className="btn-primary text-sm py-2 px-4">Get Started</Link>
+          <div className="flex items-center gap-2 sm:gap-3">
+            <Link href="/login" className="btn-secondary text-sm py-2 px-3 sm:px-4 hidden sm:block">Log in</Link>
+            <Link href="/login" className="btn-primary text-sm py-2 px-3 sm:px-4">Get Started</Link>
           </div>
         </div>
       </nav>
