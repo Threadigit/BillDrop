@@ -88,11 +88,11 @@ export default function PricingPage() {
               <ul className="space-y-4 mb-8">
                 <li className="flex items-center gap-3">
                   <Check className="w-5 h-5 text-[var(--accent-success)]" />
-                  <span>Track up to 10 subscriptions</span>
+                  <span>Full email scanning</span>
                 </li>
                 <li className="flex items-center gap-3">
                   <Check className="w-5 h-5 text-[var(--accent-success)]" />
-                  <span>Email scanning</span>
+                  <span>Track up to 10 subscriptions</span>
                 </li>
                 <li className="flex items-center gap-3">
                   <Check className="w-5 h-5 text-[var(--accent-success)]" />
