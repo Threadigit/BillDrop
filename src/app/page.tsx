@@ -61,7 +61,8 @@ export default function LandingPage() {
       {/* Navigation */}
       <nav className="fixed top-0 left-0 right-0 z-50 backdrop-blur-md bg-[var(--background)]/80 border-b border-black/5">
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
+          {/* Left - Logo */}
+          <Link href="/" className="flex items-center gap-2">
             <Image 
               src="/logo.png" 
               alt="BillDrop Logo" 
@@ -70,8 +71,16 @@ export default function LandingPage() {
               className="rounded-xl"
             />
             <span className="font-semibold text-xl">BillDrop</span>
+          </Link>
+          
+          {/* Center - Nav Links */}
+          <div className="hidden sm:flex items-center gap-8 absolute left-1/2 -translate-x-1/2">
+            <Link href="/pricing" className="text-sm text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors">Pricing</Link>
+            <Link href="/#faq" className="text-sm text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors">FAQ</Link>
           </div>
-          <div className="flex items-center gap-4">
+          
+          {/* Right - Actions */}
+          <div className="flex items-center gap-3">
             <Link href="/login" className="btn-secondary text-sm py-2 px-4 hidden sm:block">Log in</Link>
             <Link href="/login" className="btn-primary text-sm py-2 px-4">Get Started</Link>
           </div>
@@ -402,7 +411,7 @@ export default function LandingPage() {
               },
               {
                 question: "How do you make money?",
-                answer: "It's completely free for now."
+                answer: "We offer a free tier for up to 10 subscriptions. For unlimited tracking and advanced features, we charge $6.99/month. Simple and transparent."
               },
               {
                 question: "Can I trust you with my Gmail?",
