@@ -14,6 +14,13 @@ export const metadata: Metadata = {
   description: "Stop paying for subscriptions you don't use. BillDrop scans your email to find hidden recurring charges and helps you cancel them in seconds.",
   keywords: ["subscription tracker", "cancel subscriptions", "save money", "recurring charges", "subscription management"],
   authors: [{ name: "BillDrop" }],
+  icons: {
+    icon: [
+      { url: "/favicon-16.png", sizes: "16x16", type: "image/png" },
+      { url: "/favicon-32.png", sizes: "32x32", type: "image/png" },
+    ],
+    apple: "/apple-touch-icon.png",
+  },
   openGraph: {
     title: "BillDrop - Find and Cancel Unused Subscriptions",
     description: "We'll help you find and cancel unused subscriptions in minutes. No bank linking required.",
