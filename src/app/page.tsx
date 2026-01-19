@@ -363,6 +363,74 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* FAQ Section */}
+      <section className="py-20 px-6" id="faq">
+        <div className="max-w-3xl mx-auto">
+          <motion.div 
+            className="text-center mb-12"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+          >
+            <h2 className="text-3xl sm:text-4xl font-bold mb-4">
+              Frequently Asked Questions
+            </h2>
+            <p className="text-lg text-[var(--foreground-muted)]">
+              Everything you need to know about BillDrop
+            </p>
+          </motion.div>
+          
+          <motion.div 
+            className="space-y-4"
+            initial="initial"
+            whileInView="animate"
+            viewport={{ once: true, margin: "-100px" }}
+            variants={staggerContainer}
+          >
+            {[
+              {
+                question: "Is my data safe?",
+                answer: "Absolutely. We only scan for subscription-related emails. We never read personal emails, and we never sell your data. Your privacy is our #1 priority."
+              },
+              {
+                question: "How does email scanning work?",
+                answer: "We look for receipts and billing emails from subscription services. Our AI detects recurring charges and presents them for your review."
+              },
+              {
+                question: "Do you automatically cancel subscriptions?",
+                answer: "No. We give you the information and tools to cancel yourself. This keeps you in full control."
+              },
+              {
+                question: "How do you make money?",
+                answer: "It's completely free for now."
+              },
+              {
+                question: "Can I trust you with my Gmail?",
+                answer: "We only request read-only access to emails. We can't send emails, delete anything, or access anything beyond receipts. Your credentials stay with Google."
+              },
+              {
+                question: "What if I don't use Gmail?",
+                answer: "Outlook support is coming soon. You can also manually add subscriptions."
+              },
+              {
+                question: "How long does scanning take?",
+                answer: "Usually 2-5 minutes. We scan the last 3 months of emails for subscription patterns."
+              },
+            ].map((faq, index) => (
+              <motion.div
+                key={index}
+                className="bg-white rounded-2xl p-6 shadow-sm border border-black/5"
+                variants={fadeInUp}
+              >
+                <h3 className="font-semibold text-lg mb-2">{faq.question}</h3>
+                <p className="text-[var(--foreground-muted)] leading-relaxed">{faq.answer}</p>
+              </motion.div>
+            ))}
+          </motion.div>
+        </div>
+      </section>
+
+
       {/* CTA Section - Conversion Sandwich */}
       <section className="py-20 px-6">
         <div className="max-w-3xl mx-auto">
