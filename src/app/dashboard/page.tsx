@@ -11,6 +11,7 @@ import { StatsBar } from '@/components/StatsBar';
 import { SubscriptionCard, Subscription } from '@/components/SubscriptionCard';
 import EmailScanner from '@/components/EmailScanner';
 import SubscriptionDetailModal from '@/components/SubscriptionDetailModal';
+import AddSubscriptionModal from '@/components/AddSubscriptionModal';
 
 // Mock subscription data for when database is empty or loading
 const mockSubscriptions: Subscription[] = [
@@ -84,6 +85,7 @@ export default function DashboardPage() {
   const [savedThisMonth, setSavedThisMonth] = useState(0);
   const [loading, setLoading] = useState(true);
   const [showScanner, setShowScanner] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
   const [selectedSubscription, setSelectedSubscription] = useState<Subscription | null>(null);
 
   useEffect(() => {
@@ -248,6 +250,31 @@ export default function DashboardPage() {
     }
   };
 
+  // Add subscription manually
+  const handleAddSubscription = async (data: {
+    serviceName: string;
+    amount: number;
+    currency: string;
+    billingCycle: string;
+    nextBillingDate: string | null;
+  }) => {
+    const res = await fetch('/api/subscriptions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (res.ok) {
+      const { subscription } = await res.json();
+      setSubscriptions(prev => [...prev, {
+        ...subscription,
+        logoUrl: null,
+        status: 'active' as const,
+        confirmed: true,
+        nextBillingDate: subscription.nextBillingDate ? new Date(subscription.nextBillingDate) : null,
+      }]);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[var(--background)]">
       {/* Header */}
@@ -332,7 +359,10 @@ export default function DashboardPage() {
               Scan Emails
             </button>
           )}
-          <button className="btn-secondary flex items-center gap-2 text-sm py-3 px-5">
+          <button 
+            onClick={() => setShowAddModal(true)}
+            className="btn-secondary flex items-center gap-2 text-sm py-3 px-5"
+          >
             <Plus className="w-4 h-4" />
             Add Manually
           </button>
@@ -403,6 +433,13 @@ export default function DashboardPage() {
           onClose={() => setSelectedSubscription(null)}
           onUpdate={handleUpdateSubscription}
           onDelete={handleDeleteSubscription}
+        />
+
+        {/* Add Subscription Modal */}
+        <AddSubscriptionModal
+          isOpen={showAddModal}
+          onClose={() => setShowAddModal(false)}
+          onAdd={handleAddSubscription}
         />
       </main>
     </div>
