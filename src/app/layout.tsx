@@ -25,6 +25,20 @@ export const metadata: Metadata = {
     title: "BillDrop - Find and Cancel Unused Subscriptions",
     description: "We'll help you find and cancel unused subscriptions in minutes. No bank linking required.",
     type: "website",
+    images: [
+      {
+        url: "/logo.png",
+        width: 1200,
+        height: 1200,
+        alt: "BillDrop Logo",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "BillDrop - Find and Cancel Unused Subscriptions",
+    description: "Stop paying for subscriptions you don't use. BillDrop scans your email to find hidden recurring charges.",
+    images: ["/logo.png"],
   },
 };
 
