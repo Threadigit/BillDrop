@@ -1,7 +1,19 @@
 // OpenAI GPT-4 integration for parsing subscription emails
 
 import OpenAI from 'openai';
-import { calculateNextBillingDate } from './mock-parser';
+
+// Calculate next billing date from billing cycle
+function calculateNextBillingDate(billingCycle: 'monthly' | 'yearly' | 'weekly'): string {
+  const today = new Date();
+  if (billingCycle === 'monthly') {
+    today.setMonth(today.getMonth() + 1);
+  } else if (billingCycle === 'yearly') {
+    today.setFullYear(today.getFullYear() + 1);
+  } else if (billingCycle === 'weekly') {
+    today.setDate(today.getDate() + 7);
+  }
+  return today.toISOString().split('T')[0];
+}
 
 export interface ParsedSubscription {
   serviceName: string;
