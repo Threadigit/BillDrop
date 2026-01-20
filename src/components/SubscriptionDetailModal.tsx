@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ExternalLink, Trash2, Calendar, DollarSign, RefreshCw } from 'lucide-react';
+import { X, ExternalLink, Trash2, Calendar, DollarSign, RefreshCw, Eye, EyeOff } from 'lucide-react';
+import Link from 'next/link';
 
 interface Subscription {
   id: string;
@@ -14,6 +15,7 @@ interface Subscription {
   nextBillingDate: Date | null;
   cancellationUrl?: string | null;
   confirmed?: boolean;
+  isTracked?: boolean;
   icon?: string;
   color?: string;
 }
@@ -24,6 +26,10 @@ interface SubscriptionDetailModalProps {
   onClose: () => void;
   onUpdate: (id: string, data: Partial<Subscription>) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
+  onToggleTrack?: (id: string, isTracked: boolean) => Promise<{ success: boolean; error?: string }>;
+  tier?: string;
+  trackedCount?: number;
+  freeLimit?: number;
 }
 
 const CURRENCIES = [
@@ -64,14 +70,20 @@ export function SubscriptionDetailModal({
   onClose,
   onUpdate,
   onDelete,
+  onToggleTrack,
+  tier = 'free',
+  trackedCount = 0,
+  freeLimit = 10,
 }: SubscriptionDetailModalProps) {
   const [isLoading, setIsLoading] = useState(false);
+  const [isToggling, setIsToggling] = useState(false);
+  const [trackError, setTrackError] = useState<string | null>(null);
   const [amount, setAmount] = useState(0);
   const [currency, setCurrency] = useState('USD');
   const [billingCycle, setBillingCycle] = useState('monthly');
   const [nextDate, setNextDate] = useState('');
 
-  // Reset form when subscription changes
+  // Reset form and error when subscription changes
   useEffect(() => {
     if (subscription) {
       setAmount(subscription.amount);
@@ -79,6 +91,7 @@ export function SubscriptionDetailModal({
       setBillingCycle(subscription.billingCycle);
       setNextDate(subscription.nextBillingDate 
         ? new Date(subscription.nextBillingDate).toISOString().split('T')[0] : '');
+      setTrackError(null); // Reset error when switching subscriptions
     }
   }, [subscription?.id]);
 
@@ -99,6 +112,35 @@ export function SubscriptionDetailModal({
       onClose();
     }
   };
+
+  const handleToggleTrack = async () => {
+    if (!onToggleTrack) return;
+    
+    const newTrackingState = subscription.isTracked === false;
+    
+    // Check limit before tracking
+    if (newTrackingState && tier === 'free' && trackedCount >= freeLimit) {
+      setTrackError(`You've reached the limit of ${freeLimit} tracked subscriptions. Upgrade to Pro for unlimited tracking.`);
+      return;
+    }
+    
+    setIsToggling(true);
+    setTrackError(null);
+    
+    const result = await onToggleTrack(subscription.id, newTrackingState);
+    
+    if (!result.success && result.error) {
+      setTrackError(result.error);
+    } else {
+      onClose();
+    }
+    
+    setIsToggling(false);
+  };
+
+  // Can show track toggle only for confirmed subscriptions
+  const canToggleTrack = subscription.confirmed && onToggleTrack;
+  const isCurrentlyTracked = subscription.isTracked !== false;
 
   return (
     <AnimatePresence>
@@ -152,6 +194,46 @@ export function SubscriptionDetailModal({
                 
                 {subscription.cancellationUrl && (
                   <a href={subscription.cancellationUrl} target="_blank" className="flex items-center justify-center gap-1 py-2 rounded-lg border border-red-200 text-red-500 text-xs"><ExternalLink className="w-3 h-3" />Cancel</a>
+                )}
+
+                {/* Track/Untrack Toggle */}
+                {canToggleTrack && (
+                  <div className="mt-2">
+                    <button
+                      onClick={handleToggleTrack}
+                      disabled={isToggling}
+                      className={`w-full flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        isCurrentlyTracked 
+                          ? 'bg-gray-100 text-gray-600 hover:bg-gray-200' 
+                          : 'bg-green-100 text-green-700 hover:bg-green-200'
+                      }`}
+                    >
+                      {isToggling ? (
+                        'Updating...'
+                      ) : isCurrentlyTracked ? (
+                        <>
+                          <EyeOff className="w-4 h-4" />
+                          Stop Tracking
+                        </>
+                      ) : (
+                        <>
+                          <Eye className="w-4 h-4" />
+                          Start Tracking
+                        </>
+                      )}
+                    </button>
+                    {trackError && (
+                      <div className="mt-2 text-center">
+                        <p className="text-xs text-red-500 mb-1">{trackError}</p>
+                        <Link 
+                          href="/pricing" 
+                          className="text-xs text-[var(--accent-primary)] font-medium hover:underline"
+                        >
+                          Upgrade to Pro →
+                        </Link>
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
               

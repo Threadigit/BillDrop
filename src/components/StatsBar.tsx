@@ -9,6 +9,9 @@ interface StatsBarProps {
   activeCount: number;
   reviewCount: number;
   upcomingCount?: number;
+  trackedCount?: number;
+  freeLimit?: number;
+  tier?: string;
 }
 
 interface StatCardProps {
@@ -54,7 +57,14 @@ function StatCard({ icon, iconBgClass, value, label, badge, badgeClass, valueCla
   );
 }
 
-export function StatsBar({ totalMonthly, totalSaved, activeCount, reviewCount, upcomingCount = 0 }: StatsBarProps) {
+export function StatsBar({ totalMonthly, totalSaved, activeCount, reviewCount, upcomingCount = 0, trackedCount, freeLimit, tier }: StatsBarProps) {
+  // Build badge for active subscriptions
+  const activeBadge = tier === 'free' && trackedCount !== undefined && freeLimit 
+    ? `${trackedCount}/${freeLimit} tracked`
+    : upcomingCount > 0 
+      ? `${upcomingCount} soon` 
+      : undefined;
+      
   return (
     <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
       <StatCard
@@ -83,7 +93,7 @@ export function StatsBar({ totalMonthly, totalSaved, activeCount, reviewCount, u
         iconBgClass="bg-gradient-to-br from-orange-500/10 to-orange-500/5"
         value={activeCount}
         label="Active subscriptions"
-        badge={upcomingCount > 0 ? `${upcomingCount} soon` : undefined}
+        badge={activeBadge}
         badgeClass="bg-orange-100 text-orange-700"
         delay={0.3}
       />

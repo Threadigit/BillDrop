@@ -12,6 +12,8 @@ import { SubscriptionCard, Subscription } from '@/components/SubscriptionCard';
 import EmailScanner from '@/components/EmailScanner';
 import SubscriptionDetailModal from '@/components/SubscriptionDetailModal';
 import AddSubscriptionModal from '@/components/AddSubscriptionModal';
+import UpgradeBanner from '@/components/UpgradeBanner';
+import LimitReachedModal from '@/components/LimitReachedModal';
 
 // Mock subscription data for when database is empty or loading
 const mockSubscriptions: Subscription[] = [
@@ -87,6 +89,15 @@ export default function DashboardPage() {
   const [showScanner, setShowScanner] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedSubscription, setSelectedSubscription] = useState<Subscription | null>(null);
+  
+  // Tier-related state
+  const [tier, setTier] = useState<string>('free');
+  const [trackedCount, setTrackedCount] = useState(0);
+  const [freeLimit, setFreeLimit] = useState(10);
+  
+  // Limit modal state
+  const [showLimitModal, setShowLimitModal] = useState(false);
+  const [pendingConfirmSub, setPendingConfirmSub] = useState<Subscription | null>(null);
 
   useEffect(() => {
     async function fetchSubscriptions() {
@@ -101,6 +112,11 @@ export default function DashboardPage() {
           const cancelled = data.allCancelledMonthly || [];
           const totalSaved = cancelled.reduce((sum: number, sub: { monthlyAmount: number }) => sum + sub.monthlyAmount, 0);
           setSavedThisMonth(totalSaved);
+          
+          // Set tier info
+          setTier(data.tier || 'free');
+          setTrackedCount(data.trackedCount || 0);
+          setFreeLimit(data.freeLimit || 10);
         } else {
           setSubscriptions([]);
           setSavedThisMonth(0);
@@ -143,13 +159,55 @@ export default function DashboardPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: subscription.id, confirmed: true }),
       });
+      
+      if (res.status === 403) {
+        // Limit reached - show modal
+        const data = await res.json();
+        setTrackedCount(data.trackedCount || trackedCount);
+        setFreeLimit(data.freeLimit || freeLimit);
+        setPendingConfirmSub(subscription);
+        setShowLimitModal(true);
+        return;
+      }
+      
       if (res.ok) {
+        const data = await res.json();
+        const wasTracked = data.subscription?.isTracked !== false;
         setSubscriptions(prev => 
-          prev.map(s => s.id === subscription.id ? { ...s, confirmed: true } : s)
+          prev.map(s => s.id === subscription.id ? { ...s, confirmed: true, isTracked: wasTracked } : s)
         );
+        // Update tracked count from response or increment
+        if (data.trackedCount !== undefined) {
+          setTrackedCount(data.trackedCount);
+        } else if (wasTracked) {
+          setTrackedCount(prev => prev + 1);
+        }
       }
     } catch (error) {
       console.error('Error confirming subscription:', error);
+    }
+  };
+
+  // Confirm subscription without tracking (for users over limit)
+  const handleConfirmWithoutTracking = async () => {
+    if (!pendingConfirmSub) return;
+    
+    try {
+      const res = await fetch('/api/subscriptions', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: pendingConfirmSub.id, confirmed: true, isTracked: false }),
+      });
+      
+      if (res.ok) {
+        setSubscriptions(prev => 
+          prev.map(s => s.id === pendingConfirmSub.id ? { ...s, confirmed: true, isTracked: false } : s)
+        );
+      }
+    } catch (error) {
+      console.error('Error confirming subscription without tracking:', error);
+    } finally {
+      setPendingConfirmSub(null);
     }
   };
 
@@ -175,15 +233,54 @@ export default function DashboardPage() {
       const res = await fetch('/api/subscriptions', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: subscription.id, status: 'cancelled', confirmed: true }),
+        body: JSON.stringify({ id: subscription.id, status: 'cancelled', confirmed: true, isTracked: false }),
       });
       if (res.ok) {
         // Remove from list and add to savings
         setSubscriptions(prev => prev.filter(s => s.id !== subscription.id));
         setSavedThisMonth(prev => prev + subscription.amount);
+        // Decrement tracked count if it was tracked
+        if (subscription.isTracked !== false) {
+          setTrackedCount(prev => Math.max(0, prev - 1));
+        }
       }
     } catch (error) {
       console.error('Error marking subscription as cancelled:', error);
+    }
+  };
+
+  // Toggle subscription tracking status
+  const handleToggleTrack = async (id: string, isTracked: boolean): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const res = await fetch('/api/subscriptions/track', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subscriptionId: id, isTracked }),
+      });
+      
+      if (res.status === 403) {
+        const data = await res.json();
+        return { success: false, error: data.message || 'Tracking limit reached' };
+      }
+      
+      if (res.ok) {
+        // Update local state
+        setSubscriptions(prev => 
+          prev.map(s => s.id === id ? { ...s, isTracked } : s)
+        );
+        // Update tracked count
+        setTrackedCount(prev => isTracked ? prev + 1 : prev - 1);
+        // Update selected subscription if it's the one being toggled
+        if (selectedSubscription?.id === id) {
+          setSelectedSubscription(prev => prev ? { ...prev, isTracked } : null);
+        }
+        return { success: true };
+      }
+      
+      return { success: false, error: 'Failed to update tracking status' };
+    } catch (error) {
+      console.error('Error toggling subscription tracking:', error);
+      return { success: false, error: 'Network error' };
     }
   };
 
@@ -264,14 +361,23 @@ export default function DashboardPage() {
       body: JSON.stringify(data),
     });
     if (res.ok) {
-      const { subscription } = await res.json();
+      const responseData = await res.json();
+      const subscription = responseData.subscription;
+      const isTracked = responseData.isTracked !== false;
+      
       setSubscriptions(prev => [...prev, {
         ...subscription,
         logoUrl: null,
         status: 'active' as const,
         confirmed: true,
+        isTracked,
         nextBillingDate: subscription.nextBillingDate ? new Date(subscription.nextBillingDate) : null,
       }]);
+      
+      // Update tracked count if subscription was tracked
+      if (isTracked) {
+        setTrackedCount(prev => prev + 1);
+      }
     }
   };
 
@@ -346,7 +452,19 @@ export default function DashboardPage() {
           activeCount={activeSubscriptions.length}
           reviewCount={needsReview}
           upcomingCount={upcomingRenewals}
+          trackedCount={trackedCount}
+          freeLimit={freeLimit}
+          tier={tier}
         />
+
+        {/* Upgrade Banner - Show for free tier users over limit */}
+        {tier === 'free' && (
+          <UpgradeBanner
+            trackedCount={trackedCount}
+            freeLimit={freeLimit}
+            confirmedCount={activeSubscriptions.filter(s => s.confirmed).length}
+          />
+        )}
 
         {/* Action Buttons */}
         <div className="flex flex-wrap gap-3 mb-8">
@@ -433,6 +551,10 @@ export default function DashboardPage() {
           onClose={() => setSelectedSubscription(null)}
           onUpdate={handleUpdateSubscription}
           onDelete={handleDeleteSubscription}
+          onToggleTrack={handleToggleTrack}
+          tier={tier}
+          trackedCount={trackedCount}
+          freeLimit={freeLimit}
         />
 
         {/* Add Subscription Modal */}
@@ -440,6 +562,19 @@ export default function DashboardPage() {
           isOpen={showAddModal}
           onClose={() => setShowAddModal(false)}
           onAdd={handleAddSubscription}
+        />
+
+        {/* Limit Reached Modal */}
+        <LimitReachedModal
+          isOpen={showLimitModal}
+          onClose={() => {
+            setShowLimitModal(false);
+            setPendingConfirmSub(null);
+          }}
+          subscriptionName={pendingConfirmSub?.serviceName || ''}
+          trackedCount={trackedCount}
+          freeLimit={freeLimit}
+          onConfirmWithoutTracking={handleConfirmWithoutTracking}
         />
       </main>
     </div>

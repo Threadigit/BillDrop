@@ -157,6 +157,10 @@ export default function PricingPage() {
                 </li>
                 <li className="flex items-center gap-3">
                   <Check className="w-5 h-5 text-[var(--accent-success)]" />
+                  <span>New subscription detection</span>
+                </li>
+                <li className="flex items-center gap-3">
+                  <Check className="w-5 h-5 text-[var(--accent-success)]" />
                   <span>Price change detection</span>
                 </li>
                 <li className="flex items-center gap-3">

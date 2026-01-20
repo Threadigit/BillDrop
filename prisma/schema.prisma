@@ -60,6 +60,7 @@ model User {
   emailVerified DateTime?
   name          String?
   image         String?
+  tier          String         @default("free") // "free" or "pro"
   accounts      Account[]
   sessions      Session[]
   subscriptions Subscription[]
@@ -93,6 +94,7 @@ model Subscription {
   // Status
   status          String    @default("active")
   confirmed       Boolean   @default(false)
+  isTracked       Boolean   @default(false) // Only true when user confirms and under limit
   
   // Timestamps
   createdAt       DateTime  @default(now())

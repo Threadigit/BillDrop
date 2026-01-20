@@ -13,6 +13,7 @@ export interface Subscription {
   logoUrl: string | null;
   status: string;
   confirmed: boolean;
+  isTracked?: boolean;
   icon?: string;
   color?: string;
 }
@@ -103,11 +104,19 @@ export function SubscriptionCard({ subscription, index = 0, onClick, onConfirm, 
         </div>
         
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
             <span className="font-semibold truncate">{subscription.serviceName}</span>
-            {!subscription.confirmed && (
+            {!subscription.confirmed ? (
               <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-yellow-100 text-yellow-700">
                 Review
+              </span>
+            ) : subscription.isTracked !== false ? (
+              <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-700">
+                Tracked
+              </span>
+            ) : (
+              <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-500">
+                Untracked
               </span>
             )}
           </div>
