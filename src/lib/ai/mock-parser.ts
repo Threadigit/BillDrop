@@ -158,8 +158,8 @@ function extractCancellationUrl(text: string): string | null {
   return null;
 }
 
-// Calculate next billing date from billing cycle
-function calculateNextBillingDate(billingCycle: 'monthly' | 'yearly' | 'weekly'): string {
+// Calculate next billing date from billing cycle - exported for reuse
+export function calculateNextBillingDate(billingCycle: 'monthly' | 'yearly' | 'weekly'): string {
   const today = new Date();
   if (billingCycle === 'monthly') {
     today.setMonth(today.getMonth() + 1);

@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Limit emails per request to prevent timeout (Vercel 60s limit)
-    const MAX_EMAILS_PER_REQUEST = 15;
+    const MAX_EMAILS_PER_REQUEST = 10; // Reduced from 15
     const emailsToProcess = emails.slice(0, MAX_EMAILS_PER_REQUEST);
     
     if (emails.length > MAX_EMAILS_PER_REQUEST) {

@@ -1,6 +1,7 @@
 // OpenAI GPT-4 integration for parsing subscription emails
 
 import OpenAI from 'openai';
+import { calculateNextBillingDate } from './mock-parser';
 
 export interface ParsedSubscription {
   serviceName: string;
@@ -259,7 +260,7 @@ Content: ${cleanBody}`;
           { role: 'user', content: userPrompt },
         ],
         temperature: 0.1,
-        max_tokens: 500, // Enough for 5 small JSON objects
+        max_tokens: 1000, // 3 emails per batch = less tokens needed
         response_format: { type: 'json_object' },
       });
       
@@ -313,12 +314,27 @@ Content: ${cleanBody}`;
         continue;
       }
       
-      console.error('[AI Batch] Error:', error instanceof Error ? error.message : error);
-      return emails.map(e => ({ id: e.id, parsed: null }));
+      // AI failed - fallback to regex parser for each email
+      console.error('[AI Batch] Error, falling back to regex:', error instanceof Error ? error.message : error);
+      return emails.map(e => {
+        const fallbackResult = parseEmailFallback(e.subject, e.from, e.body);
+        return {
+          id: e.id,
+          parsed: fallbackResult.serviceName !== 'Unknown Service' ? fallbackResult : null,
+        };
+      });
     }
   }
   
-  return emails.map(e => ({ id: e.id, parsed: null }));
+  // Exhausted retries - fallback to regex parser
+  console.log('[AI Batch] Exhausted retries, falling back to regex');
+  return emails.map(e => {
+    const fallbackResult = parseEmailFallback(e.subject, e.from, e.body);
+    return {
+      id: e.id,
+      parsed: fallbackResult.serviceName !== 'Unknown Service' ? fallbackResult : null,
+    };
+  });
 }
 
 // =============================================================================
@@ -611,14 +627,55 @@ export function parseEmailFallback(
      amountMatch[1] === '£' ? 'GBP' : 'USD') 
     : 'USD';
 
+  // Try to find cancellation URL - look for common patterns
+  let cancellationUrl: string | null = null;
+  const cancelPatterns = [
+    /https?:\/\/[^\s"'<>]+(?:cancel|unsubscribe|manage[-_]?subscription|account[-_]?settings)[^\s"'<>]*/i,
+    /href=["'](https?:\/\/[^"']+(?:cancel|unsubscribe)[^"']*)["']/i,
+  ];
+  
+  for (const pattern of cancelPatterns) {
+    const match = body.match(pattern);
+    if (match) {
+      cancellationUrl = match[1] || match[0];
+      // Clean up any trailing characters
+      cancellationUrl = cancellationUrl.replace(/['">\s]+$/, '');
+      break;
+    }
+  }
+
+  // Try to find next billing date
+  let nextBillingDate: string | null = null;
+  const datePatterns = [
+    // "renews on January 15, 2024" or "next payment: 01/15/2024"
+    /(?:renews?\s+on|next\s+(?:payment|billing|charge)|billing\s+date|will\s+be\s+charged\s+on)[:\s]+([A-Z][a-z]+\s+\d{1,2},?\s+\d{4})/i,
+    /(?:renews?\s+on|next\s+(?:payment|billing|charge)|billing\s+date)[:\s]+(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})/i,
+    /(?:renews?\s+on|next\s+(?:payment|billing|charge)|billing\s+date)[:\s]+(\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2})/i,
+  ];
+  
+  for (const pattern of datePatterns) {
+    const match = body.match(pattern);
+    if (match && match[1]) {
+      try {
+        const parsedDate = new Date(match[1]);
+        if (!isNaN(parsedDate.getTime()) && parsedDate > new Date()) {
+          nextBillingDate = parsedDate.toISOString().split('T')[0];
+          break;
+        }
+      } catch {
+        // Ignore parse errors
+      }
+    }
+  }
+
   return {
     serviceName: extractedServiceName || 'Unknown Service',
     description: subject, // Use subject as description fallback
     amount,
     currency,
     billingCycle: 'monthly',
-    nextBillingDate: null,
-    cancellationUrl: null,
+    nextBillingDate: nextBillingDate || calculateNextBillingDate('monthly'),
+    cancellationUrl,
     confidence: 0.3
   };
 }
