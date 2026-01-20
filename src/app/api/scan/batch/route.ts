@@ -104,7 +104,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No emails provided' }, { status: 400 });
     }
 
-    console.log(`[Batch Scan] Processing batch of ${emails.length} emails`);
+    // Limit emails per request to prevent timeout (Vercel 60s limit)
+    const MAX_EMAILS_PER_REQUEST = 15;
+    const emailsToProcess = emails.slice(0, MAX_EMAILS_PER_REQUEST);
+    
+    if (emails.length > MAX_EMAILS_PER_REQUEST) {
+      console.log(`[Batch Scan] Limiting from ${emails.length} to ${MAX_EMAILS_PER_REQUEST} emails per request`);
+    }
+
+    console.log(`[Batch Scan] Processing batch of ${emailsToProcess.length} emails`);
 
     const foundSubscriptions: Array<{
       id: string;
@@ -118,8 +126,8 @@ export async function POST(request: NextRequest) {
     // Process emails in batches of 5 using AI
     const BATCH_SIZE = 5;
     
-    for (let i = 0; i < emails.length; i += BATCH_SIZE) {
-      const batch = emails.slice(i, i + BATCH_SIZE);
+    for (let i = 0; i < emailsToProcess.length; i += BATCH_SIZE) {
+      const batch = emailsToProcess.slice(i, i + BATCH_SIZE);
       console.log(`[Batch Scan] Processing AI batch ${Math.floor(i / BATCH_SIZE) + 1} (${batch.length} emails)`);
       
       // Send batch to AI
@@ -177,22 +185,6 @@ export async function POST(request: NextRequest) {
               continue;
             }
 
-            // Calculate next billing date if not provided
-            let nextBillingDate: Date | null = null;
-            if (parsed.nextBillingDate) {
-              nextBillingDate = new Date(parsed.nextBillingDate);
-            } else {
-              // Calculate based on billing cycle from today
-              const today = new Date();
-              if (parsed.billingCycle === 'monthly') {
-                nextBillingDate = new Date(today.setMonth(today.getMonth() + 1));
-              } else if (parsed.billingCycle === 'yearly') {
-                nextBillingDate = new Date(today.setFullYear(today.getFullYear() + 1));
-              } else if (parsed.billingCycle === 'weekly') {
-                nextBillingDate = new Date(today.setDate(today.getDate() + 7));
-              }
-            }
-
             const subscription = await prisma.subscription.create({
               data: {
                 userId: user.id,
@@ -202,7 +194,7 @@ export async function POST(request: NextRequest) {
                 amount: parsed.amount,
                 currency: parsed.currency,
                 billingCycle: parsed.billingCycle,
-                nextBillingDate: nextBillingDate,
+                nextBillingDate: parsed.nextBillingDate ? new Date(parsed.nextBillingDate) : null,
                 cancellationUrl: parsed.cancellationUrl,
                 confidence: parsed.confidence,
                 detectedFrom: 'email',
@@ -231,7 +223,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      processed: emails.length,
+      processed: emailsToProcess.length,
+      remaining: Math.max(0, emails.length - MAX_EMAILS_PER_REQUEST),
       subscriptions: foundSubscriptions,
     });
   } catch (error) {

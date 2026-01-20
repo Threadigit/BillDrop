@@ -17,9 +17,9 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// Rate limiting config
-const RETRY_DELAYS = [20000, 25000, 30000]; // OpenAI suggests 20s retry, so: 20s, 25s, 30s
-const MIN_DELAY_BETWEEN_REQUESTS = 1500; // 1.5s between requests
+// Rate limiting config - reduced for Vercel 60s timeout
+const RETRY_DELAYS = [3000, 5000, 8000]; // Faster retries for serverless
+const MIN_DELAY_BETWEEN_REQUESTS = 500; // 500ms between requests
 
 // Simple delay function
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
