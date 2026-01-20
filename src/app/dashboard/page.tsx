@@ -39,6 +39,9 @@ export default function DashboardPage() {
   // Limit modal state
   const [showLimitModal, setShowLimitModal] = useState(false);
   const [pendingConfirmSub, setPendingConfirmSub] = useState<Subscription | null>(null);
+  
+  // Filter state for subscription list
+  const [trackFilter, setTrackFilter] = useState<'all' | 'tracked' | 'untracked'>('all');
 
   useEffect(() => {
     async function fetchSubscriptions() {
@@ -442,8 +445,25 @@ export default function DashboardPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
         >
-          <div className="p-6 border-b border-black/5">
+          <div className="p-6 border-b border-black/5 flex items-center justify-between gap-4 flex-wrap">
             <h2 className="text-lg font-semibold">Your Subscriptions</h2>
+            
+            {/* Filter Toggle */}
+            <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-xl">
+              {(['all', 'tracked', 'untracked'] as const).map((filter) => (
+                <button
+                  key={filter}
+                  onClick={() => setTrackFilter(filter)}
+                  className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-all ${
+                    trackFilter === filter
+                      ? 'bg-white text-slate-900 shadow-sm'
+                      : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  {filter === 'all' ? 'All' : filter === 'tracked' ? 'Tracked' : 'Untracked'}
+                </button>
+              ))}
+            </div>
           </div>
           
           {loading ? (
@@ -470,7 +490,13 @@ export default function DashboardPage() {
             </div>
           ) : (
             <div className="divide-y divide-black/5">
-              {activeSubscriptions.map((sub, index) => (
+              {activeSubscriptions
+                .filter(sub => {
+                  if (trackFilter === 'all') return true;
+                  if (trackFilter === 'tracked') return sub.isTracked !== false;
+                  return sub.isTracked === false;
+                })
+                .map((sub, index) => (
                 <SubscriptionCard
                   key={sub.id}
                   subscription={sub}
