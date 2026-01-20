@@ -319,11 +319,9 @@ Content: ${cleanBody}`;
       const isRateLimit = error instanceof Error && 
         (error.message.includes('429') || error.message.includes('rate limit'));
       
-      if (isRateLimit && attempt < RETRY_DELAYS.length) {
-        const retryDelay = RETRY_DELAYS[attempt];
-        console.log(`[AI Batch] Rate limited, retrying in ${retryDelay}ms`);
-        await delay(retryDelay);
-        continue;
+      // On Vercel (60s timeout), skip retries and fallback immediately to avoid timeout
+      if (isRateLimit) {
+        console.log('[AI Batch] Rate limited, falling back to regex immediately (Vercel timeout protection)');
       }
       
       // AI failed - fallback to regex parser for each email
