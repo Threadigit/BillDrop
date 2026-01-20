@@ -1,5 +1,6 @@
 'use client';
 
+import { useSession } from 'next-auth/react';
 import { motion } from 'framer-motion';
 import { Mail, Bell, Zap, Shield, ArrowRight, CheckCircle, CreditCard, Calendar, Clock } from 'lucide-react';
 import Image from 'next/image';
@@ -56,13 +57,17 @@ const features = [
 ];
 
 export default function LandingPage() {
+  const { data: session } = useSession();
+  const logoHref = session ? '/dashboard' : '/';
+  const ctaHref = session ? '/dashboard' : '/login';
+  
   return (
     <div className="min-h-screen bg-[var(--background)] hero-pattern">
       {/* Navigation */}
       <nav className="fixed top-0 left-0 right-0 z-50 backdrop-blur-md bg-[var(--background)]/80 border-b border-black/5">
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           {/* Left - Logo */}
-          <Link href="/" className="flex items-center gap-2">
+          <Link href={logoHref} className="flex items-center gap-2">
             <Image 
               src="/logo.png" 
               alt="BillDrop Logo" 
@@ -81,8 +86,14 @@ export default function LandingPage() {
           
           {/* Right - Actions */}
           <div className="flex items-center gap-2 sm:gap-3">
-            <Link href="/login" className="btn-secondary text-sm py-2 px-3 sm:px-4 hidden sm:block">Log in</Link>
-            <Link href="/login" className="btn-primary text-sm py-2 px-3 sm:px-4">Get Started</Link>
+            {session ? (
+              <Link href="/dashboard" className="btn-primary text-sm py-2 px-3 sm:px-4">Dashboard</Link>
+            ) : (
+              <>
+                <Link href="/login" className="btn-secondary text-sm py-2 px-3 sm:px-4 hidden sm:block">Log in</Link>
+                <Link href="/login" className="btn-primary text-sm py-2 px-3 sm:px-4">Get Started</Link>
+              </>
+            )}
           </div>
         </div>
       </nav>
