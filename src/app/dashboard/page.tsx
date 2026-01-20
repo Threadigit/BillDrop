@@ -449,26 +449,26 @@ export default function DashboardPage() {
           <div className="p-6 border-b border-black/5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <h2 className="text-lg font-semibold">Your Subscriptions</h2>
             
-            <div className="flex items-center gap-3 w-full sm:w-auto">
-              {/* Search Input */}
-              <div className="relative flex-1 sm:flex-none">
-                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
+              {/* Search Input - Order 2 on mobile (below), Order 1 on desktop (left) */}
+              <div className="relative order-2 sm:order-1">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
                 <input 
                   type="text" 
                   placeholder="Search subscriptions..." 
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full sm:w-64 pl-9 pr-4 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-[var(--accent-primary)] focus:ring-2 focus:ring-[var(--accent-primary)]/10 outline-none transition-all placeholder:text-slate-400"
+                  className="w-full sm:w-64 pl-9 pr-4 py-2.5 text-sm bg-white border border-slate-300 rounded-xl shadow-sm focus:border-[var(--accent-primary)] focus:ring-2 focus:ring-[var(--accent-primary)]/10 outline-none transition-all placeholder:text-slate-400"
                 />
               </div>
 
-              {/* Filter Toggle */}
-              <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-xl shrink-0">
+              {/* Filter Toggle - Order 1 on mobile (above), Order 2 on desktop (right) */}
+              <div className="flex items-center justify-between sm:justify-start gap-1 p-1 bg-slate-100 rounded-xl shrink-0 order-1 sm:order-2">
                 {(['all', 'tracked', 'untracked'] as const).map((filter) => (
                   <button
                     key={filter}
                     onClick={() => setTrackFilter(filter)}
-                    className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${
+                    className={`flex-1 sm:flex-none px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${
                       trackFilter === filter
                         ? 'bg-white text-slate-900 shadow-sm'
                         : 'text-slate-500 hover:text-slate-700'
