@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { fetchGmailEmails, getGmailAccessToken } from '@/lib/email/gmail';
-import { filterSubscriptionEmails, FilteredEmail } from '@/lib/email/filter';
+import { filterSubscriptionEmails } from '@/lib/email/filter';
 import { parseEmailsBatchAI, parseEmailFallback } from '@/lib/ai/parser';
 
 // Vercel serverless function config - needs enough time to fetch emails
@@ -22,7 +22,7 @@ interface StoredEmail {
 // Step 1: Initialize scan - fetch and filter emails, return list for batching
 // GET /api/scan/batch
 // Returns: { success: true, emails: StoredEmail[] }
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   const session = await getServerSession(authOptions);
   
   if (!session?.user?.email) {

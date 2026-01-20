@@ -126,6 +126,7 @@ export async function POST(request: NextRequest) {
         confirmed: true,
         isTracked: canTrack, // Only track if under limit
         confidence: 1.0,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any,
     });
 
@@ -212,13 +213,15 @@ export async function PATCH(request: NextRequest) {
 
     const subscription = await prisma.subscription.update({
       where: { id },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       data: updates as any,
     });
 
     // Return updated tracking info
-    const newTrackedCount = user.subscriptions.filter(s => 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const newTrackedCount = user.subscriptions.filter((s: any) => 
       (s.id === id ? updates.confirmed ?? s.confirmed : s.confirmed) && 
-      (s.id === id ? updates.isTracked ?? ((s as any).isTracked !== false) : (s as any).isTracked !== false) &&
+      (s.id === id ? updates.isTracked ?? (s.isTracked !== false) : s.isTracked !== false) &&
       (s.id === id ? updates.status ?? s.status : s.status) !== 'cancelled' && 
       (s.id === id ? updates.status ?? s.status : s.status) !== 'dismissed'
     ).length;

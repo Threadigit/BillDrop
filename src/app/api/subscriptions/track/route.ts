@@ -58,9 +58,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Update the subscription
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const updated = await prisma.subscription.update({
       where: { id: subscriptionId },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       data: { isTracked } as any,
     });
 

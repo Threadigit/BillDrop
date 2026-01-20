@@ -15,65 +15,6 @@ import AddSubscriptionModal from '@/components/AddSubscriptionModal';
 import UpgradeBanner from '@/components/UpgradeBanner';
 import LimitReachedModal from '@/components/LimitReachedModal';
 
-// Mock subscription data for when database is empty or loading
-const mockSubscriptions: Subscription[] = [
-  {
-    id: '1',
-    serviceName: 'Netflix',
-    amount: 15.99,
-    currency: 'USD',
-    billingCycle: 'monthly',
-    nextBillingDate: new Date('2026-01-23'),
-    logoUrl: null,
-    status: 'active',
-    confirmed: true,
-  },
-  {
-    id: '2',
-    serviceName: 'Spotify',
-    amount: 9.99,
-    currency: 'USD',
-    billingCycle: 'monthly',
-    nextBillingDate: new Date('2026-01-28'),
-    logoUrl: null,
-    status: 'active',
-    confirmed: true,
-  },
-  {
-    id: '3',
-    serviceName: 'Adobe Creative Cloud',
-    amount: 54.99,
-    currency: 'USD',
-    billingCycle: 'monthly',
-    nextBillingDate: new Date('2026-02-01'),
-    logoUrl: null,
-    status: 'active',
-    confirmed: false,
-  },
-  {
-    id: '4',
-    serviceName: 'ChatGPT Plus',
-    amount: 20.00,
-    currency: 'USD',
-    billingCycle: 'monthly',
-    nextBillingDate: new Date('2026-02-05'),
-    logoUrl: null,
-    status: 'active',
-    confirmed: true,
-  },
-  {
-    id: '5',
-    serviceName: 'Gym Membership',
-    amount: 45.00,
-    currency: 'USD',
-    billingCycle: 'monthly',
-    nextBillingDate: new Date('2026-02-10'),
-    logoUrl: null,
-    status: 'active',
-    confirmed: false,
-  },
-];
-
 function getDaysUntil(date: Date | null): number {
   if (!date) return 999;
   const now = new Date();

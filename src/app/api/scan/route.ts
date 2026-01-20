@@ -13,10 +13,9 @@ export const maxDuration = 60;
 
 const USE_MOCK_EMAILS = process.env.USE_MOCK_EMAILS === 'true';
 const USE_MOCK_AI = process.env.USE_MOCK_AI === 'true' || !process.env.OPENAI_API_KEY;
-const MAX_EMAILS_TO_FETCH = 50;
 const MAX_EMAILS_TO_PARSE = 20;
 
-export async function POST(request: NextRequest) {
+export async function POST(_request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     
