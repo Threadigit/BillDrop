@@ -2,9 +2,24 @@
 
 import { useSession } from 'next-auth/react';
 import { motion } from 'framer-motion';
-import { Check, Clock, Shield, CreditCard, Zap, CheckCircle } from 'lucide-react';
+import { Check, Clock, Shield, CreditCard, Zap, CheckCircle, Loader2 } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
+
+interface Plan {
+  id: string;
+  name: string;
+  slug: string;
+  price: number;
+  currency: string;
+  interval: string;
+  description: string | null;
+  features: string[];
+  isActive: boolean;
+  isPopular: boolean;
+  sortOrder: number;
+}
 
 const fadeInUp = {
   initial: { opacity: 0, y: 30 },
@@ -23,6 +38,25 @@ const staggerContainer = {
 export default function PricingPage() {
   const { data: session } = useSession();
   const logoHref = session ? '/dashboard' : '/';
+  const [plans, setPlans] = useState<Plan[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchPlans() {
+      try {
+        const res = await fetch('/api/plans');
+        if (res.ok) {
+          const data = await res.json();
+          setPlans(data.plans);
+        }
+      } catch (error) {
+        console.error('Failed to fetch plans:', error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchPlans();
+  }, []);
   
   return (
     <div className="min-h-screen bg-[var(--background)]">
@@ -80,110 +114,74 @@ export default function PricingPage() {
 
           {/* Pricing Cards */}
           <div className="grid md:grid-cols-2 gap-6 max-w-3xl mx-auto">
-            {/* Free Tier */}
-            <motion.div
-              className="bg-white rounded-3xl p-8 border border-black/5 shadow-sm"
-              {...fadeInUp}
-            >
-              <div className="mb-6">
-                <h2 className="text-2xl font-bold mb-1">Free</h2>
-                <p className="text-[var(--foreground-muted)]">Perfect to get started</p>
+            {loading ? (
+              <div className="col-span-2 flex justify-center py-12">
+                <Loader2 className="w-8 h-8 animate-spin text-[var(--accent-primary)]" />
               </div>
+            ) : (
+              plans.map((plan, index) => (
+                <motion.div
+                  key={plan.id}
+                  className={`bg-white rounded-3xl p-8 relative overflow-hidden ${
+                    plan.isPopular 
+                      ? 'border-2 border-[var(--accent-primary)] shadow-lg' 
+                      : 'border border-black/5 shadow-sm'
+                  }`}
+                  {...fadeInUp}
+                  transition={{ delay: index * 0.1 }}
+                >
+                  {/* Coming Soon Badge for Pro */}
+                  {plan.slug === 'pro' && (
+                    <div className="absolute top-4 right-4">
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
+                        <Clock className="w-3.5 h-3.5" />
+                        Coming Soon
+                      </span>
+                    </div>
+                  )}
 
-              <div className="mb-8">
-                <span className="text-4xl font-bold">$0</span>
-                <span className="text-[var(--foreground-muted)]">/month</span>
-              </div>
+                  <div className="mb-6">
+                    <h2 className="text-2xl font-bold mb-1">{plan.name}</h2>
+                    <p className="text-[var(--foreground-muted)]">{plan.description}</p>
+                  </div>
 
-              <ul className="space-y-4 mb-8">
-                <li className="flex items-center gap-3">
-                  <Check className="w-5 h-5 text-[var(--accent-success)]" />
-                  <span>Full email scanning</span>
-                </li>
-                <li className="flex items-center gap-3">
-                  <Check className="w-5 h-5 text-[var(--accent-success)]" />
-                  <span>Track up to 10 subscriptions</span>
-                </li>
-                <li className="flex items-center gap-3">
-                  <Check className="w-5 h-5 text-[var(--accent-success)]" />
-                  <span>Basic alerts</span>
-                </li>
-                <li className="flex items-center gap-3">
-                  <Check className="w-5 h-5 text-[var(--accent-success)]" />
-                  <span>Manual entry</span>
-                </li>
-              </ul>
+                  <div className="mb-8">
+                    <span className="text-4xl font-bold">
+                      {plan.currency === 'USD' ? '$' : plan.currency}
+                      {plan.price}
+                    </span>
+                    <span className="text-[var(--foreground-muted)]">/{plan.interval}</span>
+                  </div>
 
-              <Link 
-                href="/login" 
-                className="btn-secondary w-full flex items-center justify-center py-3"
-              >
-                Get Started Free
-              </Link>
-            </motion.div>
+                  <ul className="space-y-4 mb-8">
+                    {plan.features.map((feature, i) => (
+                      <li key={i} className="flex items-center gap-3">
+                        <Check className="w-5 h-5 text-[var(--accent-success)]" />
+                        <span className={i === 0 && plan.slug === 'pro' ? 'font-medium' : ''}>
+                          {feature}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
 
-            {/* Pro Tier */}
-            <motion.div
-              className="bg-white rounded-3xl p-8 border-2 border-[var(--accent-primary)] shadow-lg relative overflow-hidden"
-              {...fadeInUp}
-              transition={{ delay: 0.1 }}
-            >
-              {/* Coming Soon Badge */}
-              <div className="absolute top-4 right-4">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
-                  <Clock className="w-3.5 h-3.5" />
-                  Coming Soon
-                </span>
-              </div>
-
-              <div className="mb-6">
-                <h2 className="text-2xl font-bold mb-1">Pro</h2>
-                <p className="text-[var(--foreground-muted)]">Everything you need</p>
-              </div>
-
-              <div className="mb-8">
-                <span className="text-4xl font-bold">$6.99</span>
-                <span className="text-[var(--foreground-muted)]">/month</span>
-              </div>
-
-              <ul className="space-y-4 mb-8">
-                <li className="flex items-center gap-3">
-                  <Check className="w-5 h-5 text-[var(--accent-success)]" />
-                  <span className="font-medium">Everything in free +</span>
-                </li>
-                <li className="flex items-center gap-3">
-                  <Check className="w-5 h-5 text-[var(--accent-success)]" />
-                  <span >Unlimited tracked subscriptions</span>
-                </li>
-                <li className="flex items-center gap-3">
-                  <Check className="w-5 h-5 text-[var(--accent-success)]" />
-                  <span>3-day renewal alerts</span>
-                </li>
-                <li className="flex items-center gap-3">
-                  <Check className="w-5 h-5 text-[var(--accent-success)]" />
-                  <span>New subscription detection</span>
-                </li>
-                <li className="flex items-center gap-3">
-                  <Check className="w-5 h-5 text-[var(--accent-success)]" />
-                  <span>Price change detection</span>
-                </li>
-                <li className="flex items-center gap-3">
-                  <Check className="w-5 h-5 text-[var(--accent-success)]" />
-                  <span>Export data</span>
-                </li>
-                <li className="flex items-center gap-3">
-                  <Check className="w-5 h-5 text-[var(--accent-success)]" />
-                  <span>Priority support</span>
-                </li>
-              </ul>
-
-              <button 
-                disabled
-                className="w-full py-3 rounded-full bg-slate-100 text-slate-400 font-medium cursor-not-allowed"
-              >
-                Coming Soon
-              </button>
-            </motion.div>
+                  {plan.slug === 'free' ? (
+                    <Link 
+                      href="/login" 
+                      className="btn-secondary w-full flex items-center justify-center py-3"
+                    >
+                      Get Started Free
+                    </Link>
+                  ) : (
+                    <button 
+                      disabled
+                      className="w-full py-3 rounded-full bg-slate-100 text-slate-400 font-medium cursor-not-allowed"
+                    >
+                      Coming Soon
+                    </button>
+                  )}
+                </motion.div>
+              ))
+            )}
           </div>
         </div>
       </section>
@@ -271,7 +269,7 @@ export default function PricingPage() {
             
             <div className="relative z-10">
               <p className="text-white/70 text-sm uppercase tracking-wider mb-3">
-                Join 500+ people saving money
+                Users find 6+ hidden bills on average
               </p>
               <h2 className="text-3xl sm:text-4xl font-bold mb-8 leading-tight">
                 Stop paying for subscriptions<br />you don&apos;t use

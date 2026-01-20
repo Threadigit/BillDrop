@@ -112,7 +112,7 @@ export default function LandingPage() {
               <motion.div {...fadeInUp} className="mb-6">
                 <span className="pill inline-flex items-center gap-2">
                   <span className="w-2 h-2 bg-[var(--accent-primary)] rounded-full animate-pulse"></span>
-                  Join 500+ people saving money
+                  Users find 6+ hidden bills on average
                 </span>
               </motion.div>
               
@@ -468,7 +468,7 @@ export default function LandingPage() {
             <div className="relative z-10">
               {/* TOP: Emotional Hook */}
               <p className="text-white/70 text-sm uppercase tracking-wider mb-3">
-                Join 500+ people saving money
+                Users find 6+ hidden bills on average
               </p>
               <h2 className="text-3xl sm:text-4xl font-bold mb-8 leading-tight">
                 Stop paying for subscriptions<br />you don&apos;t use

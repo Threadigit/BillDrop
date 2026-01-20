@@ -127,3 +127,23 @@ model EmailScan {
   completedAt DateTime?
   error       String?
 }
+
+// ====================
+// Pricing Plans
+// ====================
+
+model Plan {
+  id          String   @id @default(cuid())
+  name        String   // "Free", "Pro"
+  slug        String   @unique // "free", "pro"
+  price       Float    // 0, 6.99
+  currency    String   @default("USD")
+  interval    String   @default("monthly") // "monthly", "yearly"
+  description String?  // "Perfect to get started"
+  features    Json     // ["Feature 1", "Feature 2", ...]
+  isActive    Boolean  @default(true)
+  isPopular   Boolean  @default(false)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
