@@ -42,6 +42,7 @@ export default function DashboardPage() {
   
   // Filter state for subscription list
   const [trackFilter, setTrackFilter] = useState<'all' | 'tracked' | 'untracked'>('all');
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     async function fetchSubscriptions() {
@@ -445,24 +446,38 @@ export default function DashboardPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
         >
-          <div className="p-6 border-b border-black/5 flex items-center justify-between gap-4 flex-wrap">
+          <div className="p-6 border-b border-black/5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <h2 className="text-lg font-semibold">Your Subscriptions</h2>
             
-            {/* Filter Toggle */}
-            <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-xl">
-              {(['all', 'tracked', 'untracked'] as const).map((filter) => (
-                <button
-                  key={filter}
-                  onClick={() => setTrackFilter(filter)}
-                  className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-all ${
-                    trackFilter === filter
-                      ? 'bg-white text-slate-900 shadow-sm'
-                      : 'text-slate-500 hover:text-slate-700'
-                  }`}
-                >
-                  {filter === 'all' ? 'All' : filter === 'tracked' ? 'Tracked' : 'Untracked'}
-                </button>
-              ))}
+            <div className="flex items-center gap-3 w-full sm:w-auto">
+              {/* Search Input */}
+              <div className="relative flex-1 sm:flex-none">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input 
+                  type="text" 
+                  placeholder="Search subscriptions..." 
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full sm:w-64 pl-9 pr-4 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-[var(--accent-primary)] focus:ring-2 focus:ring-[var(--accent-primary)]/10 outline-none transition-all placeholder:text-slate-400"
+                />
+              </div>
+
+              {/* Filter Toggle */}
+              <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-xl shrink-0">
+                {(['all', 'tracked', 'untracked'] as const).map((filter) => (
+                  <button
+                    key={filter}
+                    onClick={() => setTrackFilter(filter)}
+                    className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${
+                      trackFilter === filter
+                        ? 'bg-white text-slate-900 shadow-sm'
+                        : 'text-slate-500 hover:text-slate-700'
+                    }`}
+                  >
+                    {filter === 'all' ? 'All' : filter === 'tracked' ? 'Tracked' : 'Untracked'}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
           
@@ -492,9 +507,13 @@ export default function DashboardPage() {
             <div className="divide-y divide-black/5">
               {activeSubscriptions
                 .filter(sub => {
-                  if (trackFilter === 'all') return true;
-                  if (trackFilter === 'tracked') return sub.isTracked !== false;
-                  return sub.isTracked === false;
+                  // Text search
+                  const matchesSearch = sub.serviceName.toLowerCase().includes(searchQuery.toLowerCase());
+                  
+                  // Status filter
+                  if (trackFilter === 'all') return matchesSearch;
+                  if (trackFilter === 'tracked') return matchesSearch && sub.isTracked !== false;
+                  return matchesSearch && sub.isTracked === false;
                 })
                 .map((sub, index) => (
                 <SubscriptionCard
