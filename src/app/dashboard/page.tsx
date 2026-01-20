@@ -47,7 +47,7 @@ export default function DashboardPage() {
     async function fetchSubscriptions() {
       try {
         const res = await fetch('/api/subscriptions');
-        if (res.ok) {
+        if (res.ok) { 
           const data = await res.json();
           // Use actual data from database, empty if none
           setSubscriptions(data.subscriptions || []);

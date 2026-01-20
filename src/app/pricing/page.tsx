@@ -319,10 +319,9 @@ export default function PricingPage() {
             © 2026 BillDrop. All rights reserved.
           </div>
           <div className="flex gap-6 text-sm text-[var(--foreground-muted)]">
-            <Link href="/pricing" className="hover:text-[var(--foreground)] transition-colors">Pricing</Link>
-            <a href="#" className="hover:text-[var(--foreground)] transition-colors">Privacy</a>
-            <a href="#" className="hover:text-[var(--foreground)] transition-colors">Terms</a>
-            <a href="#" className="hover:text-[var(--foreground)] transition-colors">Contact</a>
+            <Link href="/privacy" className="hover:text-[var(--foreground)] transition-colors">Privacy</Link>
+            <Link href="/terms" className="hover:text-[var(--foreground)] transition-colors">Terms</Link>
+            <a href="mailto:info@billdrop.io" className="hover:text-[var(--foreground)] transition-colors">Contact</a>
           </div>
         </div>
       </footer>
