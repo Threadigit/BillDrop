@@ -149,7 +149,11 @@ export default function PricingPage() {
               <ul className="space-y-4 mb-8">
                 <li className="flex items-center gap-3">
                   <Check className="w-5 h-5 text-[var(--accent-success)]" />
-                  <span className="font-medium">Unlimited subscriptions</span>
+                  <span className="font-medium">Everything in free +</span>
+                </li>
+                <li className="flex items-center gap-3">
+                  <Check className="w-5 h-5 text-[var(--accent-success)]" />
+                  <span >Unlimited tracked subscriptions</span>
                 </li>
                 <li className="flex items-center gap-3">
                   <Check className="w-5 h-5 text-[var(--accent-success)]" />
