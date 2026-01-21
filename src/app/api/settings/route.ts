@@ -85,8 +85,9 @@ export async function PATCH(req: Request) {
       if (notifications.marketingEmails !== undefined) updateData.marketingEmails = notifications.marketingEmails;
     }
     
-    if (profile && profile.name !== undefined) {
-      updateData.name = profile.name;
+    if (profile) {
+      if (profile.name !== undefined) updateData.name = profile.name;
+      if (profile.timezone !== undefined) updateData.timezone = profile.timezone;
     }
 
     if (json.intent && json.intent.proPlanSubscriptionIntent !== undefined) {
