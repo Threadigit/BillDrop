@@ -11,6 +11,7 @@ interface LimitReachedModalProps {
   trackedCount: number;
   freeLimit: number;
   onConfirmWithoutTracking: () => void;
+  onUpgrade?: () => void;
 }
 
 export function LimitReachedModal({
@@ -20,6 +21,7 @@ export function LimitReachedModal({
   trackedCount,
   freeLimit,
   onConfirmWithoutTracking,
+  onUpgrade
 }: LimitReachedModalProps) {
   return (
     <AnimatePresence>
@@ -82,9 +84,12 @@ export function LimitReachedModal({
                 {/* Options */}
                 <div className="space-y-3">
                   {/* Option 1: Upgrade */}
-                  <Link
-                    href="/pricing"
-                    className="flex items-center gap-4 p-4 rounded-xl border-2 border-[var(--accent-primary)] bg-indigo-50 hover:bg-indigo-100 transition-colors"
+                  <button
+                    onClick={() => {
+                        onUpgrade && onUpgrade();
+                        onClose(); // Optional: close limit modal when opening upgrade modal
+                    }}
+                    className="w-full flex items-center gap-4 p-4 rounded-xl border-2 border-[var(--accent-primary)] bg-indigo-50 hover:bg-indigo-100 transition-colors text-left"
                   >
                     <div className="w-10 h-10 rounded-lg bg-[var(--accent-primary)] flex items-center justify-center">
                       <Crown className="w-5 h-5 text-white" />
@@ -98,7 +103,7 @@ export function LimitReachedModal({
                       </div>
                     </div>
                     <ArrowRight className="w-5 h-5 text-[var(--accent-primary)]" />
-                  </Link>
+                  </button>
 
                   {/* Option 2: Confirm without tracking */}
                   <button

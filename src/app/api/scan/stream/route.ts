@@ -36,19 +36,16 @@ async function processEmailBatch(
     const results = await Promise.allSettled(
       batch.map(async (email) => {
         try {
-          console.log(`[Scan] Processing email: "${email.subject.substring(0, 50)}..." from ${email.from}`);
           
           // Try AI parser first
           let parsed = await parseEmailWithAI(email.subject, email.from, email.body);
           
           // If AI fails, try fallback parser
           if (!parsed && email.extractedServiceName) {
-            console.log(`[Scan] AI returned null, trying fallback for: ${email.extractedServiceName}`);
             parsed = parseEmailFallback(email.subject, email.from, email.body, email.extractedServiceName);
           }
           
           if (parsed) {
-            console.log(`[Scan] Found subscription: ${parsed.serviceName} - ${parsed.currency} ${parsed.amount}`);
             
             // Check if subscription already exists
             const existing = await prisma.subscription.findFirst({
@@ -74,7 +71,6 @@ async function processEmailBatch(
             const isTrial = (parsed.description?.toLowerCase().includes('trial') || 
                             parsed.serviceName.toLowerCase().includes('trial'));
             if (parsed.amount === 0 && !isTrial) {
-              console.log(`[Scan] Skipped ${parsed.serviceName}: $0 and not a trial`);
               return null;
             }
 
@@ -202,9 +198,7 @@ export async function GET(_request: NextRequest) {
         // Step 2: Fetch emails (limited to prevent timeout)
         sendEvent({ type: 'status', message: 'Fetching emails...', progress: 10 });
         
-        console.log('[Scan] Starting email fetch...');
         const emails = await fetchGmailEmails(accessToken, MAX_EMAILS_TO_FETCH);
-        console.log(`[Scan] Fetched ${emails.length} emails`);
         
         sendEvent({ type: 'status', message: `Found ${emails.length} emails to analyze...`, progress: 20, emailsFound: emails.length });
 
@@ -218,17 +212,14 @@ export async function GET(_request: NextRequest) {
         sendEvent({ type: 'status', message: 'Filtering subscription emails...', progress: 25 });
         
         let filteredEmails = filterSubscriptionEmails(emails);
-        console.log(`[Scan] Filtered to ${filteredEmails.length} potential subscription emails`);
         
         // Limit the number of emails to parse to stay within timeout
         if (filteredEmails.length > MAX_EMAILS_TO_PARSE) {
-          console.log(`[Scan] Limiting to ${MAX_EMAILS_TO_PARSE} emails (from ${filteredEmails.length})`);
           filteredEmails = filteredEmails.slice(0, MAX_EMAILS_TO_PARSE);
         }
         
         // Log why emails passed the filter
         for (const email of filteredEmails.slice(0, 5)) {
-          console.log(`[Scan] Filtered email: "${email.subject}" - Keywords: ${email.matchedKeywords.join(', ')}`);
         }
         
         sendEvent({ type: 'status', message: `Analyzing ${filteredEmails.length} potential subscriptions...`, progress: 30 });

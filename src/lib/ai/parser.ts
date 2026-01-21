@@ -94,14 +94,12 @@ Content: ${cleanBody}
 
 Extract subscription/billing info and return JSON.`;
 
-  console.log(`[AI Parser] Parsing email: "${subject.substring(0, 50)}..."`);
 
   // Rate limiting: ensure minimum delay between requests
   const now = Date.now();
   const timeSinceLastRequest = now - lastRequestTime;
   if (timeSinceLastRequest < MIN_DELAY_BETWEEN_REQUESTS) {
     const waitTime = MIN_DELAY_BETWEEN_REQUESTS - timeSinceLastRequest;
-    console.log(`[AI Parser] Rate limiting: waiting ${waitTime}ms`);
     await delay(waitTime);
   }
   lastRequestTime = Date.now();
@@ -121,10 +119,8 @@ Extract subscription/billing info and return JSON.`;
       });
 
       const content = response.choices[0]?.message?.content?.trim();
-      console.log(`[AI Parser] Response: ${content?.substring(0, 200)}`);
       
       if (!content) {
-        console.log('[AI Parser] No content in response');
         return null;
       }
 
@@ -133,12 +129,10 @@ Extract subscription/billing info and return JSON.`;
       
       // Check if it's a subscription
       if (!parsed.isSubscription || parsed.isSubscription === false) {
-        console.log('[AI Parser] Not identified as subscription');
         return null;
       }
       
       if (!parsed.serviceName || !parsed.amount) {
-        console.log('[AI Parser] Missing serviceName or amount');
         return null;
       }
 
@@ -153,7 +147,6 @@ Extract subscription/billing info and return JSON.`;
         confidence: parseFloat(parsed.confidence) || 0.8,
       };
       
-      console.log(`[AI Parser] Extracted: ${result.serviceName} - ${result.currency} ${result.amount}`);
       return result;
     } catch (error: unknown) {
       // Check if it's a rate limit error
@@ -162,7 +155,6 @@ Extract subscription/billing info and return JSON.`;
       
       if (isRateLimit && attempt < RETRY_DELAYS.length) {
         const retryDelay = RETRY_DELAYS[attempt];
-        console.log(`[AI Parser] Rate limited, retrying in ${retryDelay}ms (attempt ${attempt + 1}/${RETRY_DELAYS.length})`);
         await delay(retryDelay);
         continue;
       }
@@ -236,7 +228,6 @@ export async function parseEmailsBatchAI(
 ): Promise<BatchedResult[]> {
   if (emails.length === 0) return [];
   
-  console.log(`[AI Batch] Processing batch of ${emails.length} emails`);
   
   // Build the user prompt with all emails
   const emailsText = emails.map((email, i) => {
@@ -277,10 +268,8 @@ Content: ${cleanBody}`;
       });
       
       const content = response.choices[0]?.message?.content?.trim();
-      console.log(`[AI Batch] Response received (${content?.length || 0} chars)`);
       
       if (!content) {
-        console.log('[AI Batch] No content in response');
         return emails.map(e => ({ id: e.id, parsed: null }));
       }
       
@@ -312,7 +301,6 @@ Content: ${cleanBody}`;
       });
       
       const found = results.filter(r => r.parsed !== null).length;
-      console.log(`[AI Batch] Found ${found}/${emails.length} subscriptions`);
       return results;
       
     } catch (error: unknown) {
@@ -321,7 +309,6 @@ Content: ${cleanBody}`;
       
       // On Vercel (60s timeout), skip retries and fallback immediately to avoid timeout
       if (isRateLimit) {
-        console.log('[AI Batch] Rate limited, falling back to regex immediately (Vercel timeout protection)');
       }
       
       // AI failed - fallback to regex parser for each email
@@ -337,7 +324,6 @@ Content: ${cleanBody}`;
   }
   
   // Exhausted retries - fallback to regex parser
-  console.log('[AI Batch] Exhausted retries, falling back to regex');
   return emails.map(e => {
     const fallbackResult = parseEmailFallback(e.subject, e.from, e.body);
     return {
@@ -551,21 +537,18 @@ function extractAmount(text: string): { amount: number; currency: string } | nul
     '$': 'USD', '£': 'GBP', '€': 'EUR', '₦': 'NGN', '¥': 'JPY', '₹': 'INR'
   };
   
-  console.log(`[Parser] Searching for amount in: "${text.substring(0, 300).replace(/\n/g, ' ')}..."`);
   
   // PRIORITY 1: Amount with /month or /year suffix (MOST SPECIFIC for subscriptions)
   // Matches: ₦28,500.00/month, $9.99/month, €15/year
   const perPeriodPattern = /([£$€₦¥₹])\s*([\d,]+(?:\.\d{1,2})?)\s*\/\s*(month|mo|year|yr)/gi;
   const perPeriodMatches = [...text.matchAll(perPeriodPattern)];
   
-  console.log(`[Parser] Per-period matches found: ${perPeriodMatches.length}`);
   
   for (const match of perPeriodMatches) {
     const amount = parseFloat(match[2].replace(/,/g, ''));
     // Skip zero amounts - likely free trials
     if (amount > 0) {
       const currency = currencySymbols[match[1]] || 'USD';
-      console.log(`[Parser] FOUND subscription amount: ${currency} ${amount}/${match[3]}`);
       return { amount, currency };
     }
   }
@@ -574,16 +557,13 @@ function extractAmount(text: string): { amount: number; currency: string } | nul
   const symbolFirstPattern = /([£$€₦¥₹])\s*([\d,]+(?:\.\d{1,2})?)/g;
   const symbolMatches = [...text.matchAll(symbolFirstPattern)];
   
-  console.log(`[Parser] Symbol-first matches found: ${symbolMatches.length}`);
   
   // Find the first non-zero amount
   for (const match of symbolMatches) {
     const amount = parseFloat(match[2].replace(/,/g, ''));
-    console.log(`[Parser] Checking amount: ${match[1]}${match[2]} = ${amount}`);
     // Skip zero amounts and out-of-range amounts
     if (amount > 0) {
       const currency = currencySymbols[match[1]] || 'USD';
-      console.log(`[Parser] FOUND valid amount: ${currency} ${amount}`);
       return { amount, currency };
     }
   }
@@ -595,7 +575,6 @@ function extractAmount(text: string): { amount: number; currency: string } | nul
   for (const match of codeMatches) {
     const amount = parseFloat(match[1].replace(/,/g, ''));
     if (amount > 0) {
-      console.log(`[Parser] FOUND valid amount: ${match[2].toUpperCase()} ${amount}`);
       return { amount, currency: match[2].toUpperCase() };
     }
   }
@@ -607,12 +586,10 @@ function extractAmount(text: string): { amount: number; currency: string } | nul
   for (const match of codeBeforeMatches) {
     const amount = parseFloat(match[2].replace(/,/g, ''));
     if (amount > 0) {
-      console.log(`[Parser] FOUND valid amount: ${match[1].toUpperCase()} ${amount}`);
       return { amount, currency: match[1].toUpperCase() };
     }
   }
   
-  console.log(`[Parser] No valid non-zero amount found`);
   return null;
 }
 

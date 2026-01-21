@@ -12,7 +12,7 @@ const defaultPlans = [
     interval: 'monthly',
     description: 'Perfect to get started',
     features: [
-      'Up to 10 tracked subscriptions',
+      'Up to 5 tracked subscriptions',
       'Email scanning',
       'Track and manage',
       'Basic alerts',
@@ -20,6 +20,7 @@ const defaultPlans = [
     ],
     isActive: true,
     isPopular: false,
+    maxSubscriptions: 5,
     sortOrder: 0,
   },
   {
@@ -35,11 +36,13 @@ const defaultPlans = [
       '3-day renewal alerts',
       'New subscription detection',
       'Price change detection',
+      'Weekly digest',
       'Export data',
       'Priority support',
     ],
     isActive: true,
     isPopular: true,
+    maxSubscriptions: 100000,
     sortOrder: 1,
   },
 ];

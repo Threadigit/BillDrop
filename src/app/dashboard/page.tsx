@@ -13,7 +13,9 @@ import EmailScanner from '@/components/EmailScanner';
 import SubscriptionDetailModal from '@/components/SubscriptionDetailModal';
 import AddSubscriptionModal from '@/components/AddSubscriptionModal';
 import UpgradeBanner from '@/components/UpgradeBanner';
+import { UpgradeModal } from '@/components/UpgradeModal';
 import LimitReachedModal from '@/components/LimitReachedModal';
+import { AppHeader } from '@/components/AppHeader';
 
 function getDaysUntil(date: Date | null): number {
   if (!date) return 999;
@@ -29,6 +31,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [showScanner, setShowScanner] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [selectedSubscription, setSelectedSubscription] = useState<Subscription | null>(null);
   
   // Tier-related state
@@ -326,57 +329,24 @@ export default function DashboardPage() {
     }
   };
 
+  const filteredSubscriptions = activeSubscriptions.filter(sub => {
+    // Text search
+    const matchesSearch = sub.serviceName.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    // Status filter
+    if (trackFilter === 'all') return matchesSearch;
+    if (trackFilter === 'tracked') return matchesSearch && sub.isTracked !== false;
+    return matchesSearch && sub.isTracked === false;
+  });
+
   return (
     <div className="min-h-screen bg-[var(--background)]">
       {/* Header */}
-      <header className="sticky top-0 z-50 backdrop-blur-md bg-[var(--background)]/80 border-b border-black/5">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2">
-            <Image 
-              src="/logo.png" 
-              alt="BillDrop Logo" 
-              width={40} 
-              height={40} 
-              className="rounded-xl"
-            />
-            <span className="font-semibold text-xl">BillDrop</span>
-          </Link>
-          
-          <div className="flex items-center gap-4">
-            <button className="p-2 rounded-xl hover:bg-black/5 transition-colors">
-              <Bell className="w-5 h-5 text-[var(--foreground-muted)]" />
-            </button>
-            <button className="p-2 rounded-xl hover:bg-black/5 transition-colors">
-              <Settings className="w-5 h-5 text-[var(--foreground-muted)]" />
-            </button>
-            <div className="h-6 w-px bg-black/10"></div>
-            <div className="flex items-center gap-3">
-              {session.user?.image ? (
-                <img 
-                  src={session.user.image} 
-                  alt={session.user.name || 'User'} 
-                  className="w-9 h-9 rounded-full"
-                />
-              ) : (
-                <div className="w-9 h-9 rounded-full bg-[var(--accent-primary)] flex items-center justify-center text-white font-medium">
-                  {session.user?.name?.charAt(0) || 'U'}
-                </div>
-              )}
-              <div className="hidden sm:block">
-                <div className="text-sm font-medium">{session.user?.name}</div>
-                <div className="text-xs text-[var(--foreground-muted)]">{session.user?.email}</div>
-              </div>
-            </div>
-            <button 
-              onClick={() => signOut({ callbackUrl: '/' })}
-              className="p-2 rounded-xl hover:bg-red-50 text-[var(--foreground-muted)] hover:text-red-600 transition-colors"
-              title="Sign out"
-            >
-              <LogOut className="w-5 h-5" />
-            </button>
-          </div>
-        </div>
-      </header>
+      <AppHeader />
+      <UpgradeModal 
+        isOpen={showUpgradeModal} 
+        onClose={() => setShowUpgradeModal(false)} 
+      />
 
       {/* Main Content */}
       <main className="max-w-6xl mx-auto px-6 py-8">
@@ -408,6 +378,7 @@ export default function DashboardPage() {
             trackedCount={trackedCount}
             freeLimit={freeLimit}
             confirmedCount={activeSubscriptions.filter(s => s.confirmed).length}
+            onUpgrade={() => setShowUpgradeModal(true)}
           />
         )}
 
@@ -503,19 +474,25 @@ export default function DashboardPage() {
                 </button>
               )}
             </div>
+          ) : filteredSubscriptions.length === 0 ? (
+             <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
+               <div className="w-12 h-12 rounded-xl bg-[var(--background-secondary)] flex items-center justify-center mb-4">
+                 <Search className="w-6 h-6 text-[var(--foreground-muted)] opacity-50" />
+               </div>
+               {trackFilter === 'untracked' ? (
+                 <>
+                   <h3 className="text-sm font-semibold text-[var(--foreground)] mb-1">No untracked subscription</h3>
+                   <p className="text-xs text-[var(--foreground-muted)] max-w-xs">
+                     All your subscriptions are currently being tracked.
+                   </p>
+                 </>
+               ) : (
+                 <p className="text-sm text-[var(--foreground-muted)]">No subscriptions found matching your criteria</p>
+               )}
+             </div>
           ) : (
             <div className="divide-y divide-black/5">
-              {activeSubscriptions
-                .filter(sub => {
-                  // Text search
-                  const matchesSearch = sub.serviceName.toLowerCase().includes(searchQuery.toLowerCase());
-                  
-                  // Status filter
-                  if (trackFilter === 'all') return matchesSearch;
-                  if (trackFilter === 'tracked') return matchesSearch && sub.isTracked !== false;
-                  return matchesSearch && sub.isTracked === false;
-                })
-                .map((sub, index) => (
+              {filteredSubscriptions.map((sub, index) => (
                 <SubscriptionCard
                   key={sub.id}
                   subscription={sub}
@@ -541,6 +518,7 @@ export default function DashboardPage() {
           tier={tier}
           trackedCount={trackedCount}
           freeLimit={freeLimit}
+          onUpgrade={() => setShowUpgradeModal(true)}
         />
 
         {/* Add Subscription Modal */}

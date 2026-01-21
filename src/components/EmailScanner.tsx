@@ -476,9 +476,22 @@ export default function EmailScanner({ onClose, onScanComplete, onSubscriptionFo
               <p className="font-bold text-sm">Scan Failed</p>
               <p className="text-xs opacity-90">{error}</p>
             </div>
-            <button onClick={() => { setStatus('idle'); fetchPotentials(); }} className="px-3 py-1.5 bg-white rounded-lg text-xs font-bold shadow-sm border border-red-100 hover:bg-red-50 transition-colors">
-              Retry
-            </button>
+            {(error?.toLowerCase().includes('revoke') || error?.toLowerCase().includes('connect') || error?.toLowerCase().includes('token') || error?.toLowerCase().includes('auth')) ? (
+              <button 
+                onClick={() => window.location.href = '/api/auth/signin?callbackUrl=/dashboard'}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-white text-red-700 rounded-lg text-xs font-bold shadow-sm border border-red-200 hover:bg-red-50 transition-colors"
+              >
+                <Zap className="w-3 h-3" />
+                Reconnect
+              </button>
+            ) : (
+              <button 
+                onClick={() => { setStatus('idle'); fetchPotentials(); }} 
+                className="px-3 py-1.5 bg-white rounded-lg text-xs font-bold shadow-sm border border-red-100 hover:bg-red-50 transition-colors"
+              >
+                Retry
+              </button>
+            )}
           </div>
         )}
       </div>

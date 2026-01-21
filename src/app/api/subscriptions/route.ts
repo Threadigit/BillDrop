@@ -27,8 +27,12 @@ export async function GET() {
     }
 
     // Get user tier info (tier field added in schema, may need TS server restart)
+    // Get user tier and limits
     const tier = (user as { tier?: string }).tier || 'free';
-    const tierLimits = getTierLimits(tier);
+    
+    // Fetch limit dynamically from Plan table
+    const plan = await prisma.plan.findUnique({ where: { slug: tier } });
+    const dynamicLimit = plan?.maxSubscriptions || 5;
 
     // Get ALL cancelled subscriptions (confirmed) for total savings calculation
     // Calculate monthly equivalent savings from cancelled subscriptions
@@ -37,7 +41,7 @@ export async function GET() {
       sub.confirmed === true  // Must have been confirmed as a real subscription
     );
 
-    // Calculate total monthly savings (adjust yearly/weekly to monthly equivalent)
+    // Calculate monthly equivalent savings from cancelled subscriptions
     const allCancelledMonthly = allCancelled.map(sub => {
       let monthlyAmount = sub.amount;
       if (sub.billingCycle === 'yearly') {
@@ -58,9 +62,15 @@ export async function GET() {
       sub.confirmed && (sub as { isTracked?: boolean }).isTracked !== false
     ).length;
 
-    // Check if over limit
-    const isOverLimit = tier === 'free' && trackedCount > FREE_TIER_LIMIT;
-    const canTrackMore = tier === 'pro' || trackedCount < FREE_TIER_LIMIT;
+    // Check if over limit (using dynamic limit)
+    // Pro limit is high, so logic holds: simple check against limit
+    const isOverLimit = trackedCount > dynamicLimit;
+    const canTrackMore = trackedCount < dynamicLimit;
+    
+    // Legacy tierLimits object (optional, but keep structure for frontend)
+    const tierLimits = getTierLimits(tier);
+    // Override maxTrackedSubscriptions with dynamic value
+    tierLimits.maxTrackedSubscriptions = dynamicLimit;
 
     return NextResponse.json({ 
       subscriptions: activeSubscriptions,
@@ -70,7 +80,7 @@ export async function GET() {
       trackedCount,
       isOverLimit,
       canTrackMore,
-      freeLimit: FREE_TIER_LIMIT,
+      freeLimit: dynamicLimit, // Pass dynamic limit to frontend
     });
   } catch (error) {
     console.error('Error fetching subscriptions:', error);
@@ -112,7 +122,11 @@ export async function POST(request: NextRequest) {
       s.status !== 'dismissed'
     ).length;
     
-    const canTrack = userTier === 'pro' || trackedCount < FREE_TIER_LIMIT;
+    // Dynamic Limit Check
+    const plan = await prisma.plan.findUnique({ where: { slug: userTier } });
+    const dynamicLimit = plan?.maxSubscriptions || 5;
+
+    const canTrack = trackedCount < dynamicLimit;
 
     const subscription = await prisma.subscription.create({
       data: {
@@ -183,6 +197,10 @@ export async function PATCH(request: NextRequest) {
     // Handle confirm action - check limit before tracking
     if (updates.confirmed === true && !existing.confirmed) {
       const userTier = (user as { tier?: string }).tier || 'free';
+      // Dynamic Limit Check
+      const plan = await prisma.plan.findUnique({ where: { slug: userTier } });
+      const dynamicLimit = plan?.maxSubscriptions || 5;
+
       const trackedCount = user.subscriptions.filter(s => 
         s.confirmed && 
         (s as { isTracked?: boolean }).isTracked !== false &&
@@ -191,7 +209,7 @@ export async function PATCH(request: NextRequest) {
         s.id !== id // Exclude current one
       ).length;
       
-      const canTrack = userTier === 'pro' || trackedCount < FREE_TIER_LIMIT;
+      const canTrack = trackedCount < dynamicLimit;
       
       // If user explicitly wants to track (or default behavior)
       if (updates.isTracked === undefined) {
@@ -202,9 +220,9 @@ export async function PATCH(request: NextRequest) {
       if (!canTrack && updates.isTracked === true) {
         return NextResponse.json({ 
           error: 'Tracking limit reached',
-          message: `Free tier allows tracking up to ${FREE_TIER_LIMIT} subscriptions.`,
+          message: `Free tier allows tracking up to ${dynamicLimit} subscriptions.`,
           trackedCount,
-          freeLimit: FREE_TIER_LIMIT,
+          freeLimit: dynamicLimit,
           requiresUpgrade: true,
           canConfirmWithoutTracking: true,
         }, { status: 403 });
@@ -229,7 +247,7 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ 
       subscription,
       trackedCount: newTrackedCount,
-      freeLimit: FREE_TIER_LIMIT,
+      freeLimit: (await prisma.plan.findUnique({ where: { slug: 'free' } }))?.maxSubscriptions || 5,
     });
   } catch (error) {
     console.error('Error updating subscription:', error);

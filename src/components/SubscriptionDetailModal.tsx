@@ -30,6 +30,7 @@ interface SubscriptionDetailModalProps {
   tier?: string;
   trackedCount?: number;
   freeLimit?: number;
+  onUpgrade?: () => void;
 }
 
 const CURRENCIES = [
@@ -74,6 +75,7 @@ export function SubscriptionDetailModal({
   tier = 'free',
   trackedCount = 0,
   freeLimit = 10,
+  onUpgrade,
 }: SubscriptionDetailModalProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [isToggling, setIsToggling] = useState(false);
@@ -225,12 +227,15 @@ export function SubscriptionDetailModal({
                     {trackError && (
                       <div className="mt-2 text-center">
                         <p className="text-xs text-red-500 mb-1">{trackError}</p>
-                        <Link 
-                          href="/pricing" 
-                          className="text-xs text-[var(--accent-primary)] font-medium hover:underline"
+                        <button 
+                          onClick={() => {
+                            onClose();
+                            if (onUpgrade) onUpgrade();
+                          }}
+                          className="text-xs text-[var(--accent-primary)] font-medium hover:underline bg-transparent border-none p-0 cursor-pointer"
                         >
                           Upgrade to Pro →
-                        </Link>
+                        </button>
                       </div>
                     )}
                   </div>

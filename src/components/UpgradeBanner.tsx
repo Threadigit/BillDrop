@@ -10,13 +10,15 @@ interface UpgradeBannerProps {
   freeLimit: number;
   confirmedCount: number;
   dismissible?: boolean;
+  onUpgrade?: () => void;
 }
 
 export function UpgradeBanner({ 
   trackedCount, 
   freeLimit, 
   confirmedCount,
-  dismissible = true 
+  dismissible = true,
+  onUpgrade
 }: UpgradeBannerProps) {
   const [isDismissed, setIsDismissed] = useState(false);
   
@@ -38,12 +40,12 @@ export function UpgradeBanner({
         <span className="text-sm text-[var(--foreground)]">
           <span className="font-medium">{trackedCount}/{freeLimit} tracked</span>
           <span className="text-[var(--foreground-muted)]"> · {notTrackedCount} not tracked · </span>
-          <Link 
-            href="/pricing"
+          <button 
+            onClick={() => onUpgrade && onUpgrade()}
             className="text-[var(--accent-primary)] font-medium hover:underline"
           >
             Upgrade for unlimited
-          </Link>
+          </button>
         </span>
       </div>
       

@@ -225,7 +225,7 @@ export default function PricingPage() {
               },
               {
                 question: "How do you make money?",
-                answer: "We offer a free tier for up to 10 subscriptions. For unlimited tracking and advanced features, we charge $6.99/month. Simple and transparent."
+                answer: "We offer a free tier for up to 5 subscriptions. For unlimited tracking and advanced features, we charge $6.99/month. Simple and transparent."
               },
               {
                 question: "Can I trust you with my Gmail?",

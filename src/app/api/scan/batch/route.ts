@@ -39,7 +39,6 @@ export async function GET(_request: NextRequest) {
 
   try {
     // Get access token
-    console.log('[Batch Scan] Getting access token...');
     const accessToken = await getGmailAccessToken();
     if (!accessToken) {
       return NextResponse.json({ 
@@ -48,13 +47,10 @@ export async function GET(_request: NextRequest) {
     }
 
     // Fetch emails from last 30 days
-    console.log('[Batch Scan] Fetching emails...');
     const emails = await fetchGmailEmails(accessToken);
-    console.log(`[Batch Scan] Fetched ${emails.length} emails`);
     
     // Filter for subscription-related emails
     const filteredEmails = filterSubscriptionEmails(emails);
-    console.log(`[Batch Scan] Filtered to ${filteredEmails.length} potential subscriptions`);
     
     // Return email metadata for client to batch
     const emailList: StoredEmail[] = filteredEmails.map(email => ({
@@ -109,10 +105,8 @@ export async function POST(request: NextRequest) {
     const emailsToProcess = emails.slice(0, MAX_EMAILS_PER_REQUEST);
     
     if (emails.length > MAX_EMAILS_PER_REQUEST) {
-      console.log(`[Batch Scan] Limiting from ${emails.length} to ${MAX_EMAILS_PER_REQUEST} emails per request`);
     }
 
-    console.log(`[Batch Scan] Processing batch of ${emailsToProcess.length} emails`);
 
     const foundSubscriptions: Array<{
       id: string;
@@ -128,7 +122,6 @@ export async function POST(request: NextRequest) {
     
     for (let i = 0; i < emailsToProcess.length; i += BATCH_SIZE) {
       const batch = emailsToProcess.slice(i, i + BATCH_SIZE);
-      console.log(`[Batch Scan] Processing AI batch ${Math.floor(i / BATCH_SIZE) + 1} (${batch.length} emails)`);
       
       // Send batch to AI
       const aiResults = await parseEmailsBatchAI(
@@ -145,21 +138,16 @@ export async function POST(request: NextRequest) {
         const emailContent = `${email.subject} ${email.from}`.toLowerCase();
         for (const target of debugTargets) {
           if (emailContent.includes(target)) {
-            console.log(`\n[DEBUG] 🤖 AI RESULT for ${target.toUpperCase()}:`);
-            console.log(`[DEBUG] Subject: ${email.subject}`);
-            console.log(`[DEBUG] AI parsed: ${parsed ? JSON.stringify(parsed) : 'null'}`);
           }
         }
         
         // Fallback to regex if AI didn't find anything
         if (!parsed) {
-          console.log(`[Batch Scan] AI missed, trying regex for: "${email.subject.substring(0, 30)}..."`);
           parsed = parseEmailFallback(email.subject, email.from, email.body, email.extractedServiceName);
         }
         
         // Accept ANY subscription found (even with amount=0 for human review)
         if (parsed) {
-          console.log(`[Batch Scan] Found: ${parsed.serviceName} - ${parsed.currency} ${parsed.amount} (confidence: ${parsed.confidence})`);
           
           // Check if subscription already exists
           const serviceSlug = parsed.serviceName.toLowerCase().replace(/\s+/g, '-');
@@ -181,7 +169,6 @@ export async function POST(request: NextRequest) {
             const isTrial = (parsed.description?.toLowerCase().includes('trial') || 
                             parsed.serviceName.toLowerCase().includes('trial'));
             if (parsed.amount === 0 && !isTrial) {
-              console.log(`[Batch Scan] Skipped ${parsed.serviceName}: $0 and not a trial`);
               continue;
             }
 
@@ -211,15 +198,12 @@ export async function POST(request: NextRequest) {
               confidence: subscription.confidence,
             });
             
-            console.log(`[Batch Scan] Created: ${subscription.serviceName}`);
           } else {
-            console.log(`[Batch Scan] Already exists: ${parsed.serviceName}`);
           }
         }
       }
     }
 
-    console.log(`[Batch Scan] Found ${foundSubscriptions.length} subscriptions in batch`);
 
     return NextResponse.json({
       success: true,

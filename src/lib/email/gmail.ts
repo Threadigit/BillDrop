@@ -38,7 +38,6 @@ interface GmailMessageResponse {
 
 // Refresh the Google access token using the refresh token
 async function refreshGoogleToken(refreshToken: string, accountId: string): Promise<string | null> {
-  console.log('[Gmail] Refreshing access token...');
   
   try {
     const response = await fetch('https://oauth2.googleapis.com/token', {
@@ -61,7 +60,6 @@ async function refreshGoogleToken(refreshToken: string, accountId: string): Prom
     }
 
     const data = await response.json();
-    console.log('[Gmail] Token refreshed successfully');
 
     // Update the access token in the database
     await prisma.account.update({
@@ -94,9 +92,6 @@ export async function fetchGmailEmails(accessToken: string, maxEmails?: number):
     ''
   );
   try {
-    console.log('[Gmail] Starting email fetch for last 30 days...');
-    console.log('[Gmail] Max emails:' + (maxEmails || 'unlimited'));
-    console.log('[Gmail] Access token present:', !!accessToken);
     
     // Step 1: Fetch ALL message IDs using pagination
     const allMessageIds: { id: string; threadId: string }[] = [];
@@ -108,7 +103,6 @@ export async function fetchGmailEmails(accessToken: string, maxEmails?: number):
       pageCount++;
       const pageUrl = `https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${searchQuery}&maxResults=100${nextPageToken ? `&pageToken=${nextPageToken}` : ''}`;
       
-      console.log(`[Gmail] Fetching page ${pageCount}...`);
       
       const listResponse = await fetch(pageUrl, {
         headers: {
@@ -126,14 +120,12 @@ export async function fetchGmailEmails(accessToken: string, maxEmails?: number):
       
       if (listData.messages && listData.messages.length > 0) {
         allMessageIds.push(...listData.messages);
-        console.log(`[Gmail] Page ${pageCount}: found ${listData.messages.length} messages (total: ${allMessageIds.length})`);
       }
       
       nextPageToken = listData.nextPageToken;
 
       // Stop if we have enough emails
       if (maxEmails && allMessageIds.length >= maxEmails) {
-        console.log(`[Gmail] Reached max emails limit (${maxEmails})`);
         break;
       }
       
@@ -144,10 +136,8 @@ export async function fetchGmailEmails(accessToken: string, maxEmails?: number):
       allMessageIds.splice(maxEmails);
     }
     
-    console.log(`[Gmail] Total messages found: ${allMessageIds.length} across ${pageCount} pages`);
     
     if (allMessageIds.length === 0) {
-      console.log('[Gmail] No messages matched the search query');
       return [];
     }
 
@@ -193,14 +183,12 @@ export async function fetchGmailEmails(accessToken: string, maxEmails?: number):
     const BATCH_SIZE = 25; // Adjusted to 25 to avoid rate limits (429 errors)
     const allEmails: EmailMessage[] = [];
     
-    console.log(`[Gmail] Fetching message details using Batch API (${BATCH_SIZE} per request)...`);
     
     for (let i = 0; i < allMessageIds.length; i += BATCH_SIZE) {
       const batch = allMessageIds.slice(i, i + BATCH_SIZE);
       const batchNum = Math.floor(i / BATCH_SIZE) + 1;
       const totalBatches = Math.ceil(allMessageIds.length / BATCH_SIZE);
       
-      console.log(`[Gmail] Batch ${batchNum}/${totalBatches}: fetching ${batch.length} messages in single request...`);
       
       try {
         // Build multipart batch request body
@@ -316,9 +304,7 @@ export async function fetchGmailEmails(accessToken: string, maxEmails?: number):
           }
         }
         
-        console.log(`[Gmail] Batch ${batchNum}: parsed ${parts.length} response parts`);
         
-        console.log(`[Gmail] Batch ${batchNum}: parsed ${parts.length} responses, total emails: ${allEmails.length}`);
         
       } catch (batchError) {
         console.error(`[Gmail] Batch ${batchNum} error:`, batchError);
@@ -340,10 +326,8 @@ export async function fetchGmailEmails(accessToken: string, maxEmails?: number):
     });
     
     if (recentEmails.length < allEmails.length) {
-      console.log(`[Gmail] Filtered out ${allEmails.length - recentEmails.length} emails older than 30 days`);
     }
     
-    console.log('[Gmail] Successfully fetched', recentEmails.length, 'emails from last 30 days');
     return recentEmails;
   } catch (error) {
     console.error('[Gmail] API error:', error);
@@ -353,14 +337,11 @@ export async function fetchGmailEmails(accessToken: string, maxEmails?: number):
 
 // Get Gmail access token from user's account (with automatic refresh)
 export async function getGmailAccessToken(): Promise<string | null> {
-  console.log('[Gmail] Getting access token...');
   const session = await getServerSession(authOptions);
   
   if (!session?.user?.email) {
-    console.log('[Gmail] No session or user email found');
     return null;
   }
-  console.log('[Gmail] Session user:', session.user.email);
 
   const user = await prisma.user.findUnique({
     where: { email: session.user.email },
@@ -371,13 +352,10 @@ export async function getGmailAccessToken(): Promise<string | null> {
     },
   });
 
-  console.log('[Gmail] User found:', !!user);
-  console.log('[Gmail] Google accounts found:', user?.accounts?.length || 0);
   
   const account = user?.accounts?.[0];
   
   if (!account?.access_token) {
-    console.log('[Gmail] No Google access token in database');
     return null;
   }
 
@@ -386,17 +364,13 @@ export async function getGmailAccessToken(): Promise<string | null> {
   const expiresAt = account.expires_at || 0;
   const isExpired = expiresAt < now + 300; // 5 minute buffer
   
-  console.log('[Gmail] Token expires at:', expiresAt, 'Current time:', now, 'Is expired:', isExpired);
 
   if (isExpired && account.refresh_token) {
-    console.log('[Gmail] Token is expired, attempting refresh...');
     const newToken = await refreshGoogleToken(account.refresh_token, account.id);
     if (newToken) {
       return newToken;
     }
-    console.log('[Gmail] Token refresh failed, returning existing token anyway');
   }
 
-  console.log('[Gmail] Access token found, length:', account.access_token.length);
   return account.access_token;
 }
