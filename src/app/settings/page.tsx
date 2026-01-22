@@ -4,6 +4,8 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { SettingsClientWrapper } from '@/components/settings/SettingsClientWrapper';
 
+export const dynamic = 'force-dynamic';
+
 export const metadata = {
   title: 'Settings - BillDrop',
   description: 'Manage your account settings',
