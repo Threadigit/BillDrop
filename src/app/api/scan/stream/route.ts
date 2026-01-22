@@ -112,8 +112,8 @@ async function processEmailBatch(
           }
           return null;
         } catch (parseError) {
-          console.error('[Scan] Parse error for email:', email.subject, parseError);
-          return null;
+          console.error('[Scan] Parse error for email:', parseError);
+          // Skip warnings, we just want to process what we can
         }
       })
     );

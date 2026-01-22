@@ -32,9 +32,11 @@ export function AppHeader() {
           <div className="h-6 w-px bg-black/10"></div>
           <div className="flex items-center gap-3">
             {session?.user?.image ? (
-              <img 
+              <Image 
                 src={session.user.image} 
                 alt={session.user.name || 'User'} 
+                width={36}
+                height={36}
                 className="w-9 h-9 rounded-full"
               />
             ) : (

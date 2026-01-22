@@ -64,6 +64,7 @@ model User {
   accounts      Account[]
   sessions      Session[]
   subscriptions Subscription[]
+  emailScans    EmailScan[]
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   
@@ -133,6 +134,7 @@ model CancellationGuide {
 model EmailScan {
   id          String    @id @default(cuid())
   userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   provider    String
   status      String
   emailsFound Int       @default(0)
