@@ -12,6 +12,7 @@ interface StatsBarProps {
   trackedCount?: number;
   freeLimit?: number;
   tier?: string;
+  currency?: string;
 }
 
 interface StatCardProps {
@@ -25,12 +26,22 @@ interface StatCardProps {
   delay: number;
 }
 
-// Format currency with proper commas and decimals
-function formatCurrency(amount: number): string {
-  return amount.toLocaleString('en-US', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
+// Format currency with proper symbol
+function formatCurrency(amount: number, currencyCode: string = 'USD'): string {
+  try {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currencyCode,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(amount);
+  } catch (e) {
+    // Fallback if currency code is invalid
+    return `$${amount.toLocaleString('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
+  }
 }
 
 function StatCard({ icon, iconBgClass, value, label, badge, badgeClass, valueClass, delay }: StatCardProps) {
@@ -57,7 +68,7 @@ function StatCard({ icon, iconBgClass, value, label, badge, badgeClass, valueCla
   );
 }
 
-export function StatsBar({ totalMonthly, totalSaved, activeCount, reviewCount, upcomingCount = 0, trackedCount, freeLimit, tier }: StatsBarProps) {
+export function StatsBar({ totalMonthly, totalSaved, activeCount, reviewCount, upcomingCount = 0, trackedCount, freeLimit, tier, currency = 'USD' }: StatsBarProps) {
   // Build badge for active subscriptions
   const activeBadge = tier === 'free' && trackedCount !== undefined && freeLimit 
     ? `${trackedCount}/${freeLimit} tracked`
@@ -70,7 +81,7 @@ export function StatsBar({ totalMonthly, totalSaved, activeCount, reviewCount, u
       <StatCard
         icon={<CreditCard className="w-6 h-6 text-[var(--accent-primary)]" />}
         iconBgClass="bg-gradient-to-br from-[var(--accent-primary)]/10 to-[var(--accent-primary)]/5"
-        value={`$${formatCurrency(totalMonthly)}`}
+        value={formatCurrency(totalMonthly, currency)}
         label="Total spending"
         badge="Monthly"
         badgeClass="bg-[var(--accent-primary)]/10 text-[var(--accent-primary)]"
@@ -80,7 +91,7 @@ export function StatsBar({ totalMonthly, totalSaved, activeCount, reviewCount, u
       <StatCard
         icon={<TrendingDown className="w-6 h-6 text-green-600" />}
         iconBgClass="bg-gradient-to-br from-green-500/10 to-green-500/5"
-        value={`$${formatCurrency(totalSaved)}`}
+        value={formatCurrency(totalSaved, currency)}
         label="Monthly Savings"
         badge="Total"
         badgeClass="bg-green-100 text-green-700"

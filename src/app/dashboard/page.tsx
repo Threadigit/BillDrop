@@ -46,6 +46,7 @@ export default function DashboardPage() {
   // Filter state for subscription list
   const [trackFilter, setTrackFilter] = useState<'all' | 'tracked' | 'untracked'>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [currency, setCurrency] = useState('USD');
 
   useEffect(() => {
     async function fetchSubscriptions() {
@@ -65,6 +66,7 @@ export default function DashboardPage() {
           setTier(data.tier || 'free');
           setTrackedCount(data.trackedCount || 0);
           setFreeLimit(data.freeLimit || 10);
+          setCurrency(data.currency || 'USD');
         } else {
           setSubscriptions([]);
           setSavedThisMonth(0);
@@ -370,6 +372,7 @@ export default function DashboardPage() {
           trackedCount={trackedCount}
           freeLimit={freeLimit}
           tier={tier}
+          currency={currency}
         />
 
         {/* Upgrade Banner - Show for free tier users over limit */}

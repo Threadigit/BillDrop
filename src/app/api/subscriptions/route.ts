@@ -81,6 +81,7 @@ export async function GET() {
       isOverLimit,
       canTrackMore,
       freeLimit: dynamicLimit, // Pass dynamic limit to frontend
+      currency: user.currency || 'USD',
     });
   } catch (error) {
     console.error('Error fetching subscriptions:', error);
