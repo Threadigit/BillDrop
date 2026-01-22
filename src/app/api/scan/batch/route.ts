@@ -208,21 +208,32 @@ export async function POST(request: NextRequest) {
 
 
     // Auto-detect user currency on first scan
-    if (!user.lastScannedAt && user.currency === 'USD' && foundSubscriptions.length > 0) {
+    if (!user.lastScannedAt && foundSubscriptions.length > 0) {
       const currencies = foundSubscriptions.map(s => s.currency);
-      // Find most frequent currency that isn't USD (or just take the first one if all non-USD)
-      const nonUsd = currencies.find(c => c !== 'USD');
       
-      if (nonUsd) {
-        console.log(`[Batch Scan] Auto-detected user currency: ${nonUsd}`);
-        await prisma.user.update({
-          where: { id: user.id },
-          data: { 
-            currency: nonUsd,
-            lastScannedAt: new Date()
-          }
-        });
+      // Calculate most frequent currency (Mode)
+      const frequency: Record<string, number> = {};
+      let maxFreq = 0;
+      let dominantCurrency = 'USD';
+      
+      for (const c of currencies) {
+        frequency[c] = (frequency[c] || 0) + 1;
+        if (frequency[c] > maxFreq) {
+          maxFreq = frequency[c];
+          dominantCurrency = c;
+        }
       }
+      
+      console.log(`[Batch Scan] Auto-detect: Found ${currencies.length} currencies. Dominant: ${dominantCurrency}`);
+      
+      // Update currency (even if it's USD, to mark lastScannedAt)
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { 
+          currency: dominantCurrency,
+          lastScannedAt: new Date()
+        }
+      });
     }
 
     return NextResponse.json({
