@@ -40,6 +40,7 @@ export const metadata: Metadata = {
     description: "Stop paying for subscriptions you don't use. BillDrop scans your email to find hidden recurring charges.",
     images: ["/logo.png"],
   },
+  metadataBase: new URL(process.env.NEXTAUTH_URL || 'http://localhost:3000'),
 };
 
 export default function RootLayout({

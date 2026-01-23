@@ -51,8 +51,8 @@ const nextConfig: NextConfig = {
             key: 'Content-Security-Policy',
             value: 
               "default-src 'self'; " +
-              "script-src 'self' 'unsafe-inline' https://accounts.google.com; " +
-              "style-src 'self' 'unsafe-inline'; " +
+             "script-src 'self' 'unsafe-inline' https://accounts.google.com; " +
+             "style-src 'self' 'unsafe-inline'; " +
               "img-src 'self' data: https://lh3.googleusercontent.com; " +
               "font-src 'self'; " +
               "connect-src 'self' https://accounts.google.com https://www.googleapis.com https://oauth2.googleapis.com; " +

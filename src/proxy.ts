@@ -7,7 +7,7 @@ const allowedOrigins = [
   'https://accounts.google.com',
 ];
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const origin = request.headers.get('origin');
   
   // Prepare response
